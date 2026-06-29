@@ -1,0 +1,16 @@
+# Docker Compose configuration
+# Images are built with: make docker-build
+# Start with: make run-up
+# Stop with: make run-down
+
+services:
+  app:
+    image: ${DOCKER_PREFIX:-}${PROJECT_NAME:-mcp-fs}:${DOCKER_TAG:-latest}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    # environment:
+    #   - MCP_FS_CONFIG_NAME=local
+    # volumes:
+    #   - ./config:/app/config:ro
+    #   - ./state:/app/state

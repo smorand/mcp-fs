@@ -35,7 +35,7 @@ example lives in `config-examples/mcp-fs/`:
 
 ```bash
 # 1. start mcp-fs (this repo)
-make run                                  # serves /mcp on :8080
+make serve                                # serves /mcp on :8080
 
 # 2. point config-a2a at it and validate the wiring
 cd ../config-a2a

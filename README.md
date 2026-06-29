@@ -56,7 +56,7 @@ selects the implementation.
 ```bash
 make sync                                   # install dependencies (uv)
 make test                                   # unit + functional tests (no live stack)
-make run                                    # serve /mcp and /health on :8080
+make serve                                  # serve /mcp and /health on :8080
 
 curl localhost:8080/health                  # {"status":"ok","version":"..."}
 ```
@@ -87,8 +87,8 @@ The resolved person is matched against the project ACL: platform admin (in
 
 ## Tools
 
-37 tools total: 31 `fs.*` (read, write, edit, search, list, metadata, lifecycle,
-plus tree sitter `find_definition` / `find_references`) and 6 `admin.*` (project
+39 tools total: 31 `fs.*` (read, write, edit, search, list, metadata, lifecycle,
+plus tree sitter `find_definition` / `find_references`) and 8 `admin.*` (project
 and membership management). Every `fs.*` tool takes a `mount_id`. See
 `.agent_docs/tools.md` for the full reference.
 
@@ -119,6 +119,11 @@ make check        # lint + format + mypy strict + bandit + tests (coverage >= 80
 
 * `CLAUDE.md` : compact index for AI agents.
 * `.agent_docs/architecture.md` : storage model, write / read / delete flow, safety.
-* `.agent_docs/tools.md` : reference of the 37 MCP tools.
+* `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
 * `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
 * `.agent_docs/integration.md` : consuming mcp-fs from an agent (config-a2a).
+
+## License
+
+MIT, as declared in `pyproject.toml`. A standalone `LICENSE` file is not yet
+present in the repository.

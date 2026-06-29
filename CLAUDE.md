@@ -12,11 +12,13 @@ native libraries. Stack: Python 3.13+, FastAPI, FastMCP, aioboto3, tree-sitter.
 ## Key commands
 ```
 make sync              # install deps (uv)
-make run               # uv run mcp-fs serve --config config/local.yaml
-make test              # unit + functional tests, coverage >= 80% (no live stack)
+make serve             # uv run mcp-fs serve --config config/local.yaml
+make test-cov          # unit + functional tests, coverage >= 80% (no live stack)
 make test-integration  # MCP_FS_INTEGRATION=1, real SQLite + MinIO
-make check             # lint + format + mypy strict + bandit + tests
+make check             # full gate: lint, format-check, mypy strict, bandit, test-cov
+make docker-build      # build the Docker image
 ```
+`make` is the single interface for all operations; see `.agent_docs/makefile.md`.
 
 ## Project structure
 - `src/mcp_fs/mcp_fs.py` : Typer entry (`serve`, `version`).
@@ -53,7 +55,9 @@ Integration tests (live MinIO) are deselected unless `MCP_FS_INTEGRATION=1`.
 This project follows the `python` skill. Reload it for the full reference.
 
 ## Documentation index
+- `.agent_docs/python.md` : Python coding standards (from the `python` skill).
+- `.agent_docs/makefile.md` : Makefile targets and developer interface.
 - `.agent_docs/architecture.md` : storage model, write/read/delete flow, the blocks question, safety.
-- `.agent_docs/tools.md` : reference of the 37 MCP tools.
+- `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
 - `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
 - `.agent_docs/integration.md` : consuming mcp-fs from an agent (config-a2a), identity, mount_id.

@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+.python-version
+.worktrees/
 *.egg-info/
 build/
 dist/
@@ -17,6 +19,14 @@ htmlcov/
 state/
 *.log
 .env
+.env.local
+.env.*.local
+
+# Secrets (never commit)
+*.pem
+*.key
 
 # OS
 .DS_Store
+
+# NOTE: uv.lock is NOT ignored - it is committed for reproducible builds
