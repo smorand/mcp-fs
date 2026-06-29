@@ -1,0 +1,47 @@
+# mcp-fs - local development configuration (SQLite metadata + MinIO blobs).
+# Selected via MCP_FS_CONFIG_NAME=local, or passed with --config.
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mcp_path: "/mcp"
+
+auth:
+  # debug: trust the X-Forwarded-User header injected by the calling agent (LOCAL ONLY).
+  # jwt:   verify a signed RS256 bearer token and read the username claim (production).
+  mode: "debug"
+  forwarded_user_header: "X-Forwarded-User"
+  # Platform admins (by person id): create projects, list all projects/users, act on any project.
+  admins: ["alice", "sebastien"]
+  jwt:
+    public_key_path: "/etc/mcp-fs/jwt.pub"
+    header: "Authorization"
+    algorithms: ["RS256"]
+    audience: null
+    issuer: null
+    username_claim: "preferred_username"
+
+infra:
+  meta:
+    # Per-volume metadata tree: one SQLite database file per project under this dir.
+    backend: "sqlite"
+    dir: "state/volumes"
+  blob:
+    # Content-addressed file bytes in an S3-compatible object store (MinIO of colima).
+    backend: "minio"
+    endpoint: "http://127.0.0.1:9000"
+    access_key: "admin"
+    secret_key: "CHANGE_ME_MINIO_SECRET"
+    bucket_prefix: "mcpfs-"
+    region: "us-east-1"
+  admin:
+    # ACL store (projects + members): a single local SQLite database.
+    backend: "sqlite"
+    path: "state/admin.db"
+
+safety:
+  write_quota_bytes: 52428800
+  trash_dir: ".mcp_trash"
+  read_guard: true
+  allow_hard_delete: false
+  max_read_lines: 2000
