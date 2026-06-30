@@ -16,10 +16,18 @@ server:
   host: 0.0.0.0
   port: 9010
 
-# Trusted request header carrying the end-user identity that the A2A boundary
-# captures and re-forwards to mcp-fs on every fs.* call.
+# Server-wide identity: verify a signed RS256 bearer on X-Forwarded-Authorization
+# (issuer web-a2a, email claim) and re-forward the same Bearer to mcp-fs on every
+# fs.* call. A service token covers tool discovery. Paths resolve relative to this
+# file; here they point at the shared demo keys (run scripts/gen-jwt-demo-keys.sh).
 identity:
-  inbound_header: X-Forwarded-User
+  public_key_path: ../../../config-a2a/.keys/jwt.pub
+  header: X-Forwarded-Authorization
+  algorithms: [RS256]
+  issuer: web-a2a
+  audience: null
+  claim: email
+  service_token_path: ../../../config-a2a/.keys/service.jwt
 
 persistence:
   backend: sqlite
@@ -54,16 +62,13 @@ agents:
     prompts:
       system_file: prompts/system.md
     # The juicefs: block desugars into a streamable-http MCP server with per
-    # request identity forwarding. Pointed at mcp-fs, it gives the agent the
-    # fs.* tools. Tools are surfaced as `fs.fs.read`, `fs.admin.create_project`, ...
+    # request identity forwarding (the server-wide jwt identity above governs it).
+    # Pointed at mcp-fs, it gives the agent the fs.* tools, surfaced as
+    # `fs.fs.read`, `fs.admin.create_project`, ...
     juicefs:
       url: ${MCP_FS_URL}                  # e.g. http://localhost:8080/mcp
       name: fs
-      identity:
-        mode: forwarded_user              # v1: trusted network, X-Forwarded-User
-        forwarded_user_header: X-Forwarded-User
       default_mount_id: ${MCP_FS_DEFAULT_MOUNT_ID}   # optional "current project"
-      service_identity: ${MCP_FS_SERVICE_IDENTITY}   # identity used for tool discovery
     confirmations:
       destructive_hint: prompt
       per_tool:

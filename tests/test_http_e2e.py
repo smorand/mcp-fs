@@ -30,10 +30,10 @@ from mcp.server.fastmcp import FastMCP
 
 from mcp_fs.context import ToolContext
 from mcp_fs.identity import IdentityMiddleware, IdentityResolver
-from mcp_fs.models import AuthConfig, AuthMode, JwtConfig
+from mcp_fs.models import AuthConfig, JwtConfig
 from mcp_fs.safety import SafetyManager
 from mcp_fs.server import build_app, register_all
-from tests.conftest import FakeManager, FakeStore, FakeVolume, make_config
+from tests.conftest import FakeManager, FakeStore, FakeVolume, bearer, make_config
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterator
@@ -67,12 +67,12 @@ def _tools_call(client: TestClient, headers: dict[str, str], tool: str, **argume
 
 
 def _call_as(client: TestClient, actor: str, tool: str, /, **arguments: Any) -> dict[str, Any]:
-    """Call ``tool`` as ``actor`` (debug auth) and return the JSON-RPC ``result``.
+    """Call ``tool`` as ``actor`` (a minted bearer) and return the JSON-RPC ``result``.
 
     ``actor``, ``client`` and ``tool`` are positional-only so a tool argument
     named ``person`` (e.g. on admin.add_member) cannot collide with them.
     """
-    response = _tools_call(client, {"X-Forwarded-User": actor}, tool, **arguments)
+    response = _tools_call(client, bearer(actor), tool, **arguments)
     assert response.status_code == 200, response.text
     payload = _parse_mcp(response)
     return payload["result"]
@@ -164,7 +164,7 @@ def _rsa_keypair(tmp_path: Path) -> tuple[bytes, Path]:
 def test_http_tools_list_exposes_full_surface(fake_http_client: TestClient) -> None:
     """tools/list over HTTP returns the whole surface: 31 fs.* + 8 admin.* = 39."""
     body = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
-    response = fake_http_client.post("/mcp", headers={**_MCP_HEADERS, "X-Forwarded-User": "alice"}, json=body)
+    response = fake_http_client.post("/mcp", headers={**_MCP_HEADERS, **bearer("alice")}, json=body)
     assert response.status_code == 200
     tools = _parse_mcp(response)["result"]["tools"]
     names = {tool["name"] for tool in tools}
@@ -290,7 +290,7 @@ def _jwt_app(tmp_path: Path) -> tuple[FastAPI, bytes]:
     """Build the production app in JWT mode and return it with the signing key."""
     private_pem, public_file = _rsa_keypair(tmp_path)
     config = make_config()
-    config.auth = AuthConfig(mode=AuthMode.JWT, admins=["alice"], jwt=JwtConfig(public_key_path=str(public_file)))
+    config.auth = AuthConfig(admins=["alice"], jwt=JwtConfig(public_key_path=str(public_file)))
     config.infra.admin.path = str(tmp_path / "admin.db")
     config.infra.meta.dir = str(tmp_path / "volumes")
     return build_app(config), private_pem
@@ -299,7 +299,7 @@ def _jwt_app(tmp_path: Path) -> tuple[FastAPI, bytes]:
 def test_jwt_mode_valid_token_round_trip(tmp_path: Path) -> None:
     """A correctly signed token authenticates a real MCP tools/call through the middleware."""
     app, private_pem = _jwt_app(tmp_path)
-    token = jwt.encode({"preferred_username": "alice"}, private_pem, algorithm="RS256")
+    token = jwt.encode({"email": "alice", "iss": "web-a2a"}, private_pem, algorithm="RS256")
     body = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -307,7 +307,9 @@ def test_jwt_mode_valid_token_round_trip(tmp_path: Path) -> None:
         "params": {"name": "admin.list_projects", "arguments": {}},
     }
     with TestClient(app, base_url=_BASE_URL) as client:
-        response = client.post("/mcp", headers={**_MCP_HEADERS, "Authorization": f"Bearer {token}"}, json=body)
+        response = client.post(
+            "/mcp", headers={**_MCP_HEADERS, "X-Forwarded-Authorization": f"Bearer {token}"}, json=body
+        )
         assert response.status_code == 200
         result = _parse_mcp(response)["result"]
         assert _structured(result) == {"projects": []}
@@ -323,7 +325,9 @@ def test_jwt_mode_invalid_token_is_rejected(tmp_path: Path) -> None:
         "params": {"name": "admin.list_projects", "arguments": {}},
     }
     with TestClient(app, base_url=_BASE_URL) as client:
-        response = client.post("/mcp", headers={**_MCP_HEADERS, "Authorization": "Bearer not-a-jwt"}, json=body)
+        response = client.post(
+            "/mcp", headers={**_MCP_HEADERS, "X-Forwarded-Authorization": "Bearer not-a-jwt"}, json=body
+        )
         assert response.status_code == 401
         assert response.json()["error"] == "ERR_UNAUTHENTICATED"
 
@@ -346,7 +350,7 @@ def test_jwt_mode_missing_bearer_is_rejected(tmp_path: Path) -> None:
 def test_jwt_mode_token_without_username_claim_is_rejected(tmp_path: Path) -> None:
     """A validly signed token lacking the username claim is rejected by the middleware."""
     app, private_pem = _jwt_app(tmp_path)
-    token = jwt.encode({"sub": "nobody"}, private_pem, algorithm="RS256")
+    token = jwt.encode({"sub": "nobody", "iss": "web-a2a"}, private_pem, algorithm="RS256")
     body = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -354,6 +358,8 @@ def test_jwt_mode_token_without_username_claim_is_rejected(tmp_path: Path) -> No
         "params": {"name": "admin.list_projects", "arguments": {}},
     }
     with TestClient(app, base_url=_BASE_URL) as client:
-        response = client.post("/mcp", headers={**_MCP_HEADERS, "Authorization": f"Bearer {token}"}, json=body)
+        response = client.post(
+            "/mcp", headers={**_MCP_HEADERS, "X-Forwarded-Authorization": f"Bearer {token}"}, json=body
+        )
         assert response.status_code == 401
         assert response.json()["error"] == "ERR_UNAUTHENTICATED"

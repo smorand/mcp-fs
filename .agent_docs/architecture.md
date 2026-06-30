@@ -92,8 +92,10 @@ write quota, an audit log, and a trash path helper. `fs.delete` soft deletes to
 
 ## Request lifecycle
 
-`IdentityMiddleware` (pure ASGI) resolves the person from `X-Forwarded-User`
-(debug) or a signed JWT (production) and binds it to a `ContextVar`. Each tool
-calls `ctx.authorize(mount_id)` which checks project membership before returning
-the `VolumeClient`. A wrong `mount_id` yields `ERR_FORBIDDEN`, so letting the
-model choose the mount is safe as long as the identity is correct.
+`IdentityMiddleware` (pure ASGI) resolves the person by verifying a signed RS256
+bearer token on `X-Forwarded-Authorization` (real signature verification with the
+public key, plus issuer and expiry; a missing or invalid token yields 401), reads
+the email claim, and binds it to a `ContextVar`. Each tool calls
+`ctx.authorize(mount_id)` which checks project membership before returning the
+`VolumeClient`. A wrong `mount_id` yields `ERR_FORBIDDEN`, so letting the model
+choose the mount is safe as long as the identity is correct.

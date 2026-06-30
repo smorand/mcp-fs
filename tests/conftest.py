@@ -11,11 +11,16 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import tempfile
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+import jwt as jwtlib
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from mcp.server.fastmcp import FastMCP
 
 from mcp_fs import identity
@@ -23,10 +28,10 @@ from mcp_fs.context import ToolContext
 from mcp_fs.models import (
     AdminConfig,
     AuthConfig,
-    AuthMode,
     BlobConfig,
     ErrorCode,
     InfraConfig,
+    JwtConfig,
     Member,
     Project,
     Role,
@@ -37,6 +42,42 @@ from mcp_fs.models import (
 )
 from mcp_fs.safety import SafetyManager
 from mcp_fs.server import register_all
+
+
+def _generate_test_keypair() -> tuple[bytes, str]:
+    """Generate an RS256 keypair; write the public key to a temp file for the verifier."""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    public_pem = key.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    handle = tempfile.NamedTemporaryFile(prefix="mcpfs-test-jwt-", suffix=".pub", delete=False)  # noqa: SIM115
+    handle.write(public_pem)
+    handle.close()
+    return private_pem, handle.name
+
+
+_TEST_PRIVATE_KEY, TEST_PUBLIC_KEY_PATH = _generate_test_keypair()
+
+
+def mint(email: str, *, issuer: str = "web-a2a", ttl: int = 3600) -> str:
+    """Mint a signed RS256 token for ``email`` (the test stand-in for web-a2a)."""
+    now = int(time.time())
+    return jwtlib.encode(
+        {"email": email, "iss": issuer, "iat": now, "exp": now + ttl},
+        _TEST_PRIVATE_KEY,
+        algorithm="RS256",
+    )
+
+
+def bearer(email: str) -> dict[str, str]:
+    """Return the forwarded-authorization header carrying a minted token for ``email``."""
+    return {"X-Forwarded-Authorization": f"Bearer {mint(email)}"}
 
 
 class FakeVolume:
@@ -278,7 +319,7 @@ class Harness:
 def make_config() -> ServerConfig:
     """Return a minimal in-memory server configuration."""
     return ServerConfig(
-        auth=AuthConfig(mode=AuthMode.DEBUG, admins=["alice"]),
+        auth=AuthConfig(admins=["alice"], jwt=JwtConfig(public_key_path=TEST_PUBLIC_KEY_PATH)),
         infra=InfraConfig(
             meta=SqliteMetaConfig(dir="state/volumes"),
             blob=BlobConfig(endpoint="http://minio:9000", access_key="ak", secret_key="sk"),

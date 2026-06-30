@@ -53,9 +53,9 @@ async def test_live_create_write_read_delete(tmp_path: Path) -> None:
     register_all(mcp, ctx)
 
     try:
-        with acting_as("alice"):  # alice is a platform admin in config/local.yaml
-            created = await _call(mcp, "admin.create_project", project_id=_PROJECT, owner="alice")
-            assert created["owner"] == "alice"
+        with acting_as("seb.morand@gmail.com"):  # a platform admin in config/local.yaml
+            created = await _call(mcp, "admin.create_project", project_id=_PROJECT, owner="seb.morand@gmail.com")
+            assert created["owner"] == "seb.morand@gmail.com"
 
             await _call(mcp, "fs.write", mount_id=_PROJECT, path="/dir/hello.txt", content="hello live\n")
             read = await _call(mcp, "fs.read", mount_id=_PROJECT, path="/dir/hello.txt")

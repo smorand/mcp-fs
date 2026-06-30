@@ -1,4 +1,4 @@
-"""Caller identity extraction (JWT or X-Forwarded-User) via ASGI middleware.
+"""Caller identity extraction (verified RS256 bearer token) via ASGI middleware.
 
 The resolved person is stored in a :class:`~contextvars.ContextVar` so tool
 handlers can read it without threading request objects through every call.
@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import jwt
 from starlette.datastructures import Headers
 
-from mcp_fs.models import AuthConfig, AuthMode, ErrorCode, ToolError
+from mcp_fs.models import AuthConfig, ErrorCode, ToolError
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
@@ -46,32 +46,14 @@ class IdentityResolver:
 
     def __init__(self, config: AuthConfig) -> None:
         self._config = config
-        self._public_key: str | None = None
-        if config.mode is AuthMode.JWT:
-            if config.jwt is None:
-                msg = "auth.mode is 'jwt' but auth.jwt is not configured"
-                raise ValueError(msg)
-            self._public_key = Path(config.jwt.public_key_path).read_text(encoding="utf-8")
+        self._public_key = Path(config.jwt.public_key_path).read_text(encoding="utf-8")
 
     def extract(self, headers: Headers) -> str:
         """Return the person identified by the request, or raise ``ERR_UNAUTHENTICATED``."""
-        if self._config.mode is AuthMode.DEBUG:
-            return self._from_forwarded_user(headers)
         return self._from_jwt(headers)
-
-    def _from_forwarded_user(self, headers: Headers) -> str:
-        person = headers.get(self._config.forwarded_user_header, "").strip()
-        if not person:
-            raise ToolError(
-                ErrorCode.UNAUTHENTICATED,
-                f"missing {self._config.forwarded_user_header} header (debug auth mode)",
-            )
-        return person
 
     def _from_jwt(self, headers: Headers) -> str:
         jwt_config = self._config.jwt
-        if jwt_config is None or self._public_key is None:  # pragma: no cover - guaranteed by constructor
-            raise ToolError(ErrorCode.UNAUTHENTICATED, "JWT auth not configured")
         authorization = headers.get(jwt_config.header, "")
         if not authorization.lower().startswith("bearer "):
             raise ToolError(ErrorCode.UNAUTHENTICATED, f"missing Bearer token in {jwt_config.header}")

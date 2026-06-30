@@ -52,32 +52,29 @@ class ToolError(Exception):
 # --------------------------------------------------------------------------- #
 # Configuration models (loaded from YAML)
 # --------------------------------------------------------------------------- #
-class AuthMode(StrEnum):
-    """Identity extraction strategy."""
-
-    DEBUG = "debug"
-    JWT = "jwt"
-
-
 class JwtConfig(BaseModel):
-    """Signed-JWT verification parameters (signature checked, claim read; not decrypted)."""
+    """Signed-JWT verification parameters (RS256 signature checked, claim read).
+
+    The signature is verified with the public key; this is real verification, not
+    a bare decode. The token is minted upstream by the holder of the private key.
+    """
 
     public_key_path: str
-    header: str = "Authorization"
+    # The gateway consumes the standard Authorization header for itself, so the
+    # forwarded end-user token rides X-Forwarded-Authorization.
+    header: str = "X-Forwarded-Authorization"
     algorithms: list[str] = Field(default_factory=lambda: ["RS256"])
     audience: str | None = None
-    issuer: str | None = None
-    username_claim: str = "preferred_username"
+    issuer: str | None = "web-a2a"
+    username_claim: str = "email"
 
 
 class AuthConfig(BaseModel):
-    """Authentication configuration."""
+    """Authentication configuration. Identity is a verified RS256 bearer token only."""
 
-    mode: AuthMode = AuthMode.DEBUG
-    forwarded_user_header: str = "X-Forwarded-User"
-    jwt: JwtConfig | None = None
-    # Platform admins (by person id). Admins can create projects (and designate any owner),
-    # list every project/user, and act on any project (override per-project ownership).
+    jwt: JwtConfig
+    # Platform admins (by identity = the JWT username/email claim). Admins can create
+    # projects (designating any owner), list every project/user, and act on any project.
     admins: list[str] = Field(default_factory=list)
 
 
@@ -137,7 +134,7 @@ class ServerConfig(BaseModel):
     """Top-level server configuration (the parsed YAML document)."""
 
     server: HttpConfig = Field(default_factory=HttpConfig)
-    auth: AuthConfig = Field(default_factory=AuthConfig)
+    auth: AuthConfig
     infra: InfraConfig
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
 

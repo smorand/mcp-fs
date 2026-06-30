@@ -1,5 +1,11 @@
-# mcp-fs - local development configuration (SQLite metadata + MinIO blobs).
+# mcp-fs - local configuration (SQLite metadata + MinIO blobs, JWT identity).
 # Selected via MCP_FS_CONFIG_NAME=local, or passed with --config.
+#
+# Identity is a verified RS256 bearer token only (no trust header). The end-user
+# token rides X-Forwarded-Authorization (the standard Authorization header is
+# reserved for a gateway's own auth). mcp-fs verifies the signature with the
+# public key and reads the email claim. The token is minted upstream by web-a2a
+# (it holds the matching private key); see scripts/gen-jwt-demo-keys.sh.
 
 server:
   host: "0.0.0.0"
@@ -7,27 +13,22 @@ server:
   mcp_path: "/mcp"
 
 auth:
-  # debug: trust the X-Forwarded-User header injected by the calling agent (LOCAL ONLY).
-  # jwt:   verify a signed RS256 bearer token and read the username claim (production).
-  mode: "debug"
-  forwarded_user_header: "X-Forwarded-User"
-  # Platform admins (by person id): create projects, list all projects/users, act on any project.
-  admins: ["alice", "sebastien"]
+  # Platform admins by identity (the JWT email claim). The owner of a project is
+  # also matched by email. Add the people who may create projects here.
+  admins: ["seb.morand@gmail.com", "sebastien.morand@ibm.com"]
   jwt:
-    public_key_path: "/etc/mcp-fs/jwt.pub"
-    header: "Authorization"
+    public_key_path: ".keys/jwt.pub"
+    header: "X-Forwarded-Authorization"
     algorithms: ["RS256"]
     audience: null
-    issuer: null
-    username_claim: "preferred_username"
+    issuer: "web-a2a"
+    username_claim: "email"
 
 infra:
   meta:
-    # Per-volume metadata tree: one SQLite database file per project under this dir.
     backend: "sqlite"
     dir: "state/volumes"
   blob:
-    # Content-addressed file bytes in an S3-compatible object store (MinIO of colima).
     backend: "minio"
     endpoint: "http://127.0.0.1:9000"
     access_key: "admin"
@@ -35,7 +36,6 @@ infra:
     bucket_prefix: "mcpfs-"
     region: "us-east-1"
   admin:
-    # ACL store (projects + members): a single local SQLite database.
     backend: "sqlite"
     path: "state/admin.db"
 

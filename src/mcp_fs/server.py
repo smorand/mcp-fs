@@ -55,7 +55,7 @@ def build_app(config: ServerConfig) -> FastAPI:
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         async with mcp.session_manager.run():
             await store.connect()
-            logger.info("mcp-fs %s ready (auth=%s)", __version__, config.auth.mode.value)
+            logger.info("mcp-fs %s ready (auth=jwt)", __version__)
             try:
                 yield
             finally:

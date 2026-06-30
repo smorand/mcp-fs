@@ -33,7 +33,7 @@ make docker-build      # build the Docker image
 - `volume.py` : `VolumeClient` composing meta + blob (the fs_tools contract).
 - `manager.py` : `StoreManager` (cache clients, provision / teardown volumes).
 - `safety.py` : path normalization, read before write, quota, audit, trash.
-- `identity.py` / `authz` (in sqlite_admin) : JWT | X-Forwarded-User, owner/members.
+- `identity.py` / `authz` (in sqlite_admin) : verified RS256 bearer (X-Forwarded-Authorization), owner/members.
 - `context.py` : `ToolContext` (services injected into each tool).
 - `fs_tools/` : read, write, edit (+ `patch_v4a`), search, listing, metadata, lifecycle.
 - `treesitter.py` : find_definition / find_references.
