@@ -30,3 +30,4 @@ state/
 .DS_Store
 
 # NOTE: uv.lock is NOT ignored - it is committed for reproducible builds
+.keys/
