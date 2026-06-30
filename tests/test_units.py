@@ -8,13 +8,14 @@ import pytest
 
 from mcp_fs.backends import build_admin_store, build_blob_store, build_meta_store
 from mcp_fs.config import admin_db_path, load_server_config, volume_bucket, volume_meta_path
+from mcp_fs.context import ToolContext
 from mcp_fs.manager import StoreManager
 from mcp_fs.minio_blob import MinioBlobStore
 from mcp_fs.models import ErrorCode, ToolError
 from mcp_fs.safety import SafetyConfig, SafetyManager
 from mcp_fs.sqlite_admin import SqliteAdminStore
 from mcp_fs.sqlite_meta import SqliteMetaStore
-from tests.conftest import make_config
+from tests.conftest import FakeManager, FakeStore, FakeVolume, make_config
 from tests.test_sqlite_meta import InMemoryBlob
 
 
@@ -51,6 +52,20 @@ def test_config_helpers_and_load() -> None:
     assert volume_bucket(config, "proj-a") == "mcpfs-proj-a"
     assert volume_meta_path(config, "proj-a") == Path("state/volumes/proj-a.db")
     assert admin_db_path(config) == Path("state/admin.db")
+
+
+def test_is_admin_is_caseless() -> None:
+    config = make_config()
+    config.auth.admins = ["Admin@Example.COM"]
+    ctx = ToolContext(
+        config=config,
+        store=FakeStore(),  # type: ignore[arg-type]
+        manager=FakeManager(FakeVolume()),  # type: ignore[arg-type]
+        safety=SafetyManager(config.safety),
+    )
+    assert ctx.is_admin("admin@example.com")
+    assert ctx.is_admin("ADMIN@EXAMPLE.COM")
+    assert not ctx.is_admin("other@example.com")
 
 
 def test_backend_factories() -> None:

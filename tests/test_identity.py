@@ -65,6 +65,13 @@ def test_jwt_resolver_happy_and_error_paths(tmp_path: Path) -> None:
         resolver.extract(Headers({"X-Forwarded-Authorization": f"Bearer {no_claim}"}))
 
 
+def test_jwt_resolver_casefolds_identity(tmp_path: Path) -> None:
+    private_pem, public_file = _keypair(tmp_path)
+    resolver = IdentityResolver(AuthConfig(jwt=JwtConfig(public_key_path=str(public_file))))
+    token = jwt.encode({"email": "Seb.Morand@Gmail.com", "iss": "web-a2a"}, private_pem, algorithm="RS256")
+    assert resolver.extract(Headers({"X-Forwarded-Authorization": f"Bearer {token}"})) == "seb.morand@gmail.com"
+
+
 def test_auth_config_requires_jwt() -> None:
     with pytest.raises(ValidationError):
         AuthConfig(admins=["alice"])  # type: ignore[call-arg]

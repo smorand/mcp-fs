@@ -156,3 +156,18 @@ async def test_admin_store_roundtrip(tmp_path: Path) -> None:
         assert await store.get_project("proj-a") is None
     finally:
         await store.close()
+
+
+async def test_admin_store_authorization_is_caseless(tmp_path: Path) -> None:
+    store = SqliteAdminStore(tmp_path / "admin.db")
+    await store.connect()
+    try:
+        await store.create_project("proj-c", "Owner@Example.COM")
+        # the owner matches regardless of the casing of the incoming identity
+        assert await store.is_member("proj-c", "owner@example.com")
+        await store.require_owner("proj-c", "OWNER@EXAMPLE.com")
+        await store.add_member("proj-c", "Member@X.com", added_by="owner@example.com")
+        assert await store.is_member("proj-c", "member@x.com")
+        assert {p.id for p in await store.list_projects_for("MEMBER@x.COM")} == {"proj-c"}
+    finally:
+        await store.close()

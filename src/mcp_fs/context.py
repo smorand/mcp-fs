@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from mcp_fs.identity import current_person
-from mcp_fs.models import ErrorCode, ToolError
+from mcp_fs.models import ErrorCode, ToolError, normalize_identity
 
 if TYPE_CHECKING:
     from mcp_fs.manager import StoreManager
@@ -32,8 +32,9 @@ class ToolContext:
         return person
 
     def is_admin(self, person: str) -> bool:
-        """Return whether ``person`` is a configured platform admin."""
-        return person in self.config.auth.admins
+        """Return whether ``person`` is a configured platform admin (caseless match)."""
+        normalized = normalize_identity(person)
+        return any(normalize_identity(admin) == normalized for admin in self.config.auth.admins)
 
     def require_admin(self, person: str) -> None:
         """Authorize ``person`` as a platform admin or raise ``ERR_FORBIDDEN``."""

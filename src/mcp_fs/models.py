@@ -49,6 +49,18 @@ class ToolError(Exception):
         super().__init__(f"{code.value}: {message}")
 
 
+def normalize_identity(value: str) -> str:
+    """Casefold an identity (the JWT email claim) for caseless authorization.
+
+    Authorization compares the caller against the admin list and the project ACL.
+    Emails are matched case-insensitively, so both the incoming identity and the
+    stored owner / member values are casefolded before any comparison. This is
+    applied at identity reception and inside the ACL store, so the two always
+    agree regardless of how the email was typed.
+    """
+    return value.strip().casefold()
+
+
 # --------------------------------------------------------------------------- #
 # Configuration models (loaded from YAML)
 # --------------------------------------------------------------------------- #

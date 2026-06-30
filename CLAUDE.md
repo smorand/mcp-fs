@@ -60,4 +60,5 @@ This project follows the `python` skill. Reload it for the full reference.
 - `.agent_docs/architecture.md` : storage model, write/read/delete flow, the blocks question, safety.
 - `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
 - `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
+- `.agent_docs/authorization.md` : how identity is received and verified, the ACL model (admin/owner/member), caseless email matching, managing authorization.
 - `.agent_docs/integration.md` : consuming mcp-fs from an agent (config-a2a), identity, mount_id.

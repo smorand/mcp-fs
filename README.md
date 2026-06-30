@@ -128,6 +128,7 @@ make check        # lint + format + mypy strict + bandit + tests (coverage >= 80
 * `.agent_docs/architecture.md` : storage model, write / read / delete flow, safety.
 * `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
 * `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
+* `.agent_docs/authorization.md` : identity verification, the ACL model, caseless matching, managing access.
 * `.agent_docs/integration.md` : consuming mcp-fs from an agent (config-a2a).
 
 ## License

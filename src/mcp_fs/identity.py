@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import jwt
 from starlette.datastructures import Headers
 
-from mcp_fs.models import AuthConfig, ErrorCode, ToolError
+from mcp_fs.models import AuthConfig, ErrorCode, ToolError, normalize_identity
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
@@ -75,7 +75,7 @@ class IdentityResolver:
                 ErrorCode.UNAUTHENTICATED,
                 f"token missing '{jwt_config.username_claim}' claim",
             )
-        return person
+        return normalize_identity(person)
 
 
 class IdentityMiddleware:

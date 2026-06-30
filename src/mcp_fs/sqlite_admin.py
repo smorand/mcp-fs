@@ -11,7 +11,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from mcp_fs.models import ErrorCode, Member, Project, Role, ToolError
+from mcp_fs.models import ErrorCode, Member, Project, Role, ToolError, normalize_identity
 from mcp_fs.sqlite_db import SqliteDb
 
 if TYPE_CHECKING:
@@ -85,6 +85,8 @@ class SqliteAdminStore:
 
     # ----------------------------------------------------------------- writes
     async def create_project(self, project_id: str, owner: str) -> Project:
+        owner = normalize_identity(owner)
+
         def _fn(conn: sqlite3.Connection) -> Project:
             if conn.execute("SELECT 1 FROM project WHERE id=?", (project_id,)).fetchone() is not None:
                 raise ToolError(ErrorCode.PROJECT_EXISTS, f"project '{project_id}' already exists")
@@ -105,6 +107,9 @@ class SqliteAdminStore:
         await self._store.run(lambda conn: conn.execute("DELETE FROM project WHERE id=?", (project_id,)))
 
     async def add_member(self, project_id: str, person: str, added_by: str) -> Member:
+        person = normalize_identity(person)
+        added_by = normalize_identity(added_by)
+
         def _fn(conn: sqlite3.Connection) -> Member:
             added_at = _now()
             conn.execute(
@@ -122,6 +127,7 @@ class SqliteAdminStore:
         return await self._store.run(_fn)
 
     async def remove_member(self, project_id: str, person: str) -> None:
+        person = normalize_identity(person)
         project = await self.get_project(project_id)
         if project is None:
             raise ToolError(ErrorCode.PROJECT_NOT_FOUND, f"project '{project_id}' not found")
@@ -143,6 +149,8 @@ class SqliteAdminStore:
         return await self._store.run(_fn)
 
     async def list_projects_for(self, person: str) -> list[Project]:
+        person = normalize_identity(person)
+
         def _fn(conn: sqlite3.Connection) -> list[Project]:
             rows = conn.execute(
                 "SELECT p.id, p.owner, p.created_at FROM project p "
@@ -180,6 +188,8 @@ class SqliteAdminStore:
         return await self._store.run(_fn)
 
     async def is_member(self, project_id: str, person: str) -> bool:
+        person = normalize_identity(person)
+
         def _fn(conn: sqlite3.Connection) -> bool:
             return (
                 conn.execute(
@@ -199,6 +209,7 @@ class SqliteAdminStore:
             raise ToolError(ErrorCode.FORBIDDEN, f"'{person}' is not a member of '{project_id}'")
 
     async def require_owner(self, project_id: str, person: str) -> Project:
+        person = normalize_identity(person)
         project = await self.get_project(project_id)
         if project is None:
             raise ToolError(ErrorCode.PROJECT_NOT_FOUND, f"project '{project_id}' not found")
