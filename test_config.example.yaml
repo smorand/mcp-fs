@@ -1,0 +1,22 @@
+# Copy to test_config.yaml and fill in, then run:  test-local.bat test_config.yaml
+# Consumed by scripts/test_local_prepare.py (invoked by test-local.bat on Windows).
+
+s3:
+  endpoint: "http://127.0.0.1:5000"   # moto server URL (or a real S3 endpoint)
+  access_key: "testing"               # any value works with moto
+  secret_key: "testing"               # any value works with moto
+  start_moto: true                    # true: test-local.bat launches moto on the endpoint's port
+
+llm:
+  base_url: "https://openrouter.ai/api/v1"   # OpenAI-compatible base URL
+  api_key: "sk-or-REPLACE_ME"                # your model API key
+  model: "openrouter/auto"                   # model id (a free model may not call tools reliably)
+
+paths:
+  config_a2a: "C:\\path\\to\\config-a2a"     # absolute path to the config-a2a repo
+  web_a2a: "C:\\path\\to\\web-a2a"           # absolute path to the web-a2a repo
+
+# Optional (defaults shown): the platform admin + project owner (your web-a2a login),
+# and the default project the agent works on.
+admin_email: "seb.morand@gmail.com"
+mount_id: "perso-seb"
