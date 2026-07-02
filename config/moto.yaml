@@ -1,0 +1,44 @@
+# mcp-fs - local configuration for environments without MinIO (moto server as S3).
+# Selected via MCP_FS_CONFIG_NAME=moto, or passed with --config config/moto.yaml.
+#
+# Identical to config/local.yaml except the blob endpoint points at a moto server
+# (a pure-Python S3 emulator). Start it with:  uv run moto_server -p 5000
+# moto accepts any credentials and stores objects in memory (lost on restart).
+# Use the IP 127.0.0.1 (not "localhost") so boto3 selects path-style addressing.
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  mcp_path: "/mcp"
+
+auth:
+  admins: ["seb.morand@gmail.com", "sebastien.morand@ibm.com"]
+  jwt:
+    public_key_path: ".keys/jwt.pub"
+    header: "X-Forwarded-Authorization"
+    algorithms: ["RS256"]
+    audience: null
+    issuer: "web-a2a"
+    username_claim: "email"
+
+infra:
+  meta:
+    backend: "sqlite"
+    dir: "state/volumes"
+  blob:
+    backend: "s3"
+    endpoint: "http://127.0.0.1:5000"
+    access_key: "testing"
+    secret_key: "testing"
+    bucket_prefix: "mcpfs-"
+    region: "us-east-1"
+  admin:
+    backend: "sqlite"
+    path: "state/admin.db"
+
+safety:
+  write_quota_bytes: 52428800
+  trash_dir: ".mcp_trash"
+  read_guard: true
+  allow_hard_delete: false
+  max_read_lines: 2000

@@ -62,7 +62,10 @@ curl localhost:8080/health                  # {"status":"ok","version":"..."}
 ```
 
 The default `config/local.yaml` points blobs at the colima MinIO
-(`127.0.0.1:9000`) and writes SQLite files under `state/`.
+(`127.0.0.1:9000`) and writes SQLite files under `state/`. No MinIO available
+(for example on Windows)? Use `config/moto.yaml` with a moto server (a pure
+Python S3 emulator) instead; see `.agent_docs/local-testing.md` for the
+cross-platform `uv` runbook.
 
 ## Configuration
 
@@ -129,6 +132,7 @@ make check        # lint + format + mypy strict + bandit + tests (coverage >= 80
 * `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
 * `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
 * `.agent_docs/authorization.md` : identity verification, the ACL model, caseless matching, managing access.
+* `.agent_docs/local-testing.md` : running locally without MinIO (moto server, cross-platform uv commands, smoke test).
 * `.agent_docs/integration.md` : consuming mcp-fs from an agent (config-a2a).
 
 ## License
