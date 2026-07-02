@@ -67,6 +67,13 @@ def build_app(config: ServerConfig) -> FastAPI:
     async def health() -> dict[str, Any]:
         return {"status": "ok", "version": __version__}
 
+    # The web UI plus /api/fs data plane (optional). Added before the catch-all
+    # MCP mount so their routes (/, /login, /static, /api/fs) match first.
+    if config.webui.enabled:
+        from mcp_fs.webui import mount_web  # noqa: PLC0415 - optional, imported only when enabled
+
+        mount_web(app, ctx)
+
     app.mount("/", mcp_app)
     app.add_middleware(IdentityMiddleware, resolver=resolver, protected_prefix=config.server.mcp_path)
 

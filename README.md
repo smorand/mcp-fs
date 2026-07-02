@@ -132,6 +132,7 @@ make check        # lint + format + mypy strict + bandit + tests (coverage >= 80
 * `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
 * `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
 * `.agent_docs/authorization.md` : identity verification, the ACL model, caseless matching, managing access.
+* `.agent_docs/webui.md` : the optional web UI and /api/fs data plane (upload/download/browse/zip).
 * `.agent_docs/local-testing.md` : running locally without MinIO (moto server, cross-platform uv commands, smoke test).
 * `.agent_docs/integration.md` : consuming mcp-fs from an agent (config-a2a).
 

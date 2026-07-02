@@ -142,6 +142,25 @@ class HttpConfig(BaseModel):
     mcp_path: str = "/mcp"
 
 
+class WebUiConfig(BaseModel):
+    """Optional human web UI plus file data-plane API (upload/download/browse).
+
+    Disabled by default. When enabled, a declarative email login (a signed cookie,
+    like the sibling web-a2a UI) authenticates the browser; the same /api/fs
+    endpoints also accept a Bearer JWT for programmatic use. Both go through the
+    project ACL.
+    """
+
+    enabled: bool = False
+    # Secret used to sign the session cookie (set a strong value when enabling).
+    secret_key: str = "change-me"
+    # Default theme (carbon | ei) and dark mode; the user can switch at runtime.
+    theme: str = "carbon"
+    dark_mode: bool = True
+    session_ttl_seconds: int = 86400
+    cookie_name: str = "mcpfs_session"
+
+
 class ServerConfig(BaseModel):
     """Top-level server configuration (the parsed YAML document)."""
 
@@ -149,6 +168,7 @@ class ServerConfig(BaseModel):
     auth: AuthConfig
     infra: InfraConfig
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
+    webui: WebUiConfig = Field(default_factory=WebUiConfig)
 
 
 # --------------------------------------------------------------------------- #
