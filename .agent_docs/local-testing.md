@@ -51,8 +51,66 @@ Mint a token, then send it as `X-Forwarded-Authorization: Bearer <token>`:
 uv run python scripts/mint_token.py seb.morand@gmail.com
 ```
 
-## The rest of the chain
+## Full stack: web-a2a UI to config-a2a to mcp-fs (no MinIO, no Postgres)
 
-config-a2a and web-a2a do not use S3, so the moto swap does not affect them. For
-the full chain (web-a2a to config-a2a to mcp-fs), see `.agent_docs/integration.md`
-and the identity docs in those repos; only mcp-fs's blob endpoint changes here.
+The whole chain runs on SQLite plus moto: pure Python, no MinIO, no Postgres, no
+Docker. Assumed layout: the three repos sit side by side (`../config-a2a`,
+`../web-a2a`). Generate the shared keys once from mcp-fs (it distributes them):
+
+```bash
+uv run python scripts/gen_jwt_keys.py
+```
+
+**Terminal 1, moto (S3 emulator):**
+```bash
+uv run moto_server -p 5000
+```
+
+**Terminal 2, mcp-fs on moto, then provision a project for your login email:**
+```bash
+uv run mcp-fs serve --config config/moto.yaml               # :8080
+# once, in another shell (from the mcp-fs repo):
+uv run python scripts/provision.py perso-seb seb.morand@gmail.com
+```
+
+**Terminal 3, config-a2a simple agent (needs the LLM key):**
+```bash
+cd ../config-a2a
+OPENROUTER_API_KEY=<your key> uv run agent --config config_examples/mcp-fs-moto/agents.yaml
+# serves the agent A2A endpoint at http://127.0.0.1:9100/agents/files
+```
+
+**Terminal 4, web-a2a UI on SQLite.** Set these in `web-a2a/.env` (change the
+default DATABASE_URL from Postgres to SQLite):
+```
+AGENT_CHAT_DATABASE_URL=sqlite+aiosqlite:///./state/web-a2a.db
+AGENT_CHAT_ENCRYPTION_KEY=<fernet key>
+AGENT_CHAT_SECRET_KEY=change-me-local
+AGENT_CHAT_A2A_JWT_SIGNING_KEY_PATH=./.keys/jwt.key
+```
+Generate the Fernet key with
+`uv run python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"`.
+Then:
+```bash
+cd ../web-a2a
+mkdir state                     # if missing (SQLite needs the directory)
+uv run alembic upgrade head     # SQLite schema
+uv run uvicorn agent_chat.app:app --host 0.0.0.0 --port 8000
+```
+
+**Browser (http://localhost:8000):**
+1. Login with the email that owns the project (`seb.morand@gmail.com`).
+2. Agents, add a remote agent by URL: `http://127.0.0.1:9100/agents/files` (auth: none).
+3. Open a conversation with it and ask, for example, "list my files" or "read /notes.md".
+
+Flow: web-a2a signs a per-user RS256 token, config-a2a verifies it and passes it
+through, mcp-fs verifies it and applies the ACL (the login email must own or be a
+member of the project, matched case-insensitively). An email off the ACL yields
+`ERR_FORBIDDEN`.
+
+Notes:
+- Model: the agent uses `openrouter/auto`; a free model may not call tools
+  reliably, so swap the `model` in `agents.yaml` if the agent does not act.
+- config-a2a and web-a2a both run on SQLite here; no Postgres.
+- The demo agent auto-approves destructive tools; set
+  `confirmations.destructive_hint: prompt` in `agents.yaml` for a stricter run.
