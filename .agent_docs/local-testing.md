@@ -110,6 +110,8 @@ uv run uvicorn agent_chat.app:app --host 0.0.0.0 --port 8000
 **Browser (http://localhost:8000):**
 1. Login with the email that owns the project (`seb.morand@gmail.com`).
 2. Agents, add a remote agent by URL: `http://127.0.0.1:9100/agents/files` (auth: none).
+   Use `127.0.0.1` (not the bind address `0.0.0.0`) and note the plural `/agents/`
+   with an `s`. The agent card at that URL is public, so discovery needs no token.
 3. Open a conversation with it and ask, for example, "list my files" or "read /notes.md".
 
 Flow: web-a2a signs a per-user RS256 token, config-a2a verifies it and passes it
