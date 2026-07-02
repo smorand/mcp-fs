@@ -22,7 +22,9 @@ uv run python scripts/test_local_prepare.py "$CONFIG"
 source state/test-local.vars.sh
 
 FS_DIR="$(pwd)"
-ktab() { kitty @ launch --type=tab --tab-title="$1" --hold bash "$FS_DIR/state/$2" >/dev/null; }
+# --copy-env carries this shell's full environment (PATH with uv, plus the LLM
+# env vars referenced by the run scripts) into each tab.
+ktab() { kitty @ launch --type=tab --tab-title="$1" --copy-env --hold bash "$FS_DIR/state/$2" >/dev/null; }
 
 if [ "${START_MOTO:-0}" = "1" ]; then
   echo "[2/6] Starting moto server..."

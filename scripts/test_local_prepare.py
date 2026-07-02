@@ -11,6 +11,7 @@ Usage:  uv run python scripts/test_local_prepare.py <test_config.yaml>
 
 from __future__ import annotations
 
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -138,8 +139,15 @@ def main() -> None:
     state = FS_ROOT / "state"
     state.mkdir(exist_ok=True)
 
+    # Ensure the launched shells find uv even without a login shell / rc file: prepend
+    # its directory to PATH in every run-* script (belt and suspenders next to
+    # kitty's --copy-env, which also carries PATH and the LLM env vars).
+    uv_bin = shutil.which("uv")
+    uv_dir = str(Path(uv_bin).parent) if uv_bin else ""
+
     def _bat(name: str, lines: list[str]) -> None:
-        (state / name).write_text("\r\n".join(["@echo off", *lines]) + "\r\n", encoding="utf-8")
+        head = [f'set "PATH={uv_dir};%PATH%"'] if uv_dir and name.startswith("run-") else []
+        (state / name).write_text("\r\n".join(["@echo off", *head, *lines]) + "\r\n", encoding="utf-8")
 
     # Per-service launch scripts (values baked in, so test-local.bat needs no nested quotes).
     _bat("run-moto.bat", [f'cd /d "{FS_ROOT}"', f"uv run moto_server -p {moto_port}"])
@@ -180,7 +188,8 @@ def main() -> None:
     )
 
     def _sh(name: str, lines: list[str]) -> None:
-        (state / name).write_text("#!/usr/bin/env bash\n" + "\n".join(lines) + "\n", encoding="utf-8")
+        head = [f'export PATH="{uv_dir}:$PATH"'] if uv_dir and name.startswith("run-") else []
+        (state / name).write_text("#!/usr/bin/env bash\n" + "\n".join([*head, *lines]) + "\n", encoding="utf-8")
 
     # Same launch commands for macOS / Linux (used by test-local.sh via kitty tabs).
     _sh("run-moto.sh", [f'cd "{FS_ROOT}"', f"exec uv run moto_server -p {moto_port}"])
