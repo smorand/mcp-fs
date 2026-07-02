@@ -79,6 +79,15 @@ cd ../config-a2a
 OPENROUTER_API_KEY=<your key> uv run agent --config config_examples/mcp-fs-moto/agents.yaml
 # serves the agent A2A endpoint at http://127.0.0.1:9100/agents/files
 ```
+On another host (E-I) where the mcp-fs URL or the LLM endpoint/key differ, use
+`agents.template.yaml` instead: it has `${...}` placeholders for `MCP_FS_URL`,
+`MCP_FS_MOUNT`, `LLM_MODEL`, `LLM_BASE_URL` (plus the api-key env var), set them
+in the environment or edit them inline.
+```bash
+MCP_FS_URL=http://<host>:8080/mcp MCP_FS_MOUNT=perso-seb \
+LLM_MODEL=openrouter/auto LLM_BASE_URL=https://openrouter.ai/api/v1 OPENROUTER_API_KEY=<key> \
+  uv run agent --config config_examples/mcp-fs-moto/agents.template.yaml
+```
 
 **Terminal 4, web-a2a UI on SQLite.** Set these in `web-a2a/.env` (change the
 default DATABASE_URL from Postgres to SQLite):
