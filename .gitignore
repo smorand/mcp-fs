@@ -31,3 +31,8 @@ state/
 
 # NOTE: uv.lock is NOT ignored - it is committed for reproducible builds
 .keys/
+
+# Local full-stack test artifacts (generated / user-filled)
+config/test-local.yaml
+test_config.yaml
+config/_*.yaml
