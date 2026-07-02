@@ -179,10 +179,50 @@ def main() -> None:
         ],
     )
 
+    def _sh(name: str, lines: list[str]) -> None:
+        (state / name).write_text("#!/usr/bin/env bash\n" + "\n".join(lines) + "\n", encoding="utf-8")
+
+    # Same launch commands for macOS / Linux (used by test-local.sh via kitty tabs).
+    _sh("run-moto.sh", [f'cd "{FS_ROOT}"', f"exec uv run moto_server -p {moto_port}"])
+    _sh("run-mcp-fs.sh", [f'cd "{FS_ROOT}"', "exec uv run mcp-fs serve --config config/test-local.yaml"])
+    _sh(
+        "run-config-a2a.sh",
+        [
+            f'cd "{config_a2a}"',
+            f'export OPENROUTER_API_KEY="{llm_key}"',
+            'export MCP_FS_URL="http://127.0.0.1:8080/mcp"',
+            f'export MCP_FS_MOUNT="{mount}"',
+            f'export LLM_MODEL="{llm_model}"',
+            f'export LLM_BASE_URL="{llm_base}"',
+            "exec uv run agent --config config_examples/mcp-fs-moto/agents.template.yaml",
+        ],
+    )
+    _sh(
+        "run-web-a2a.sh",
+        [
+            f'cd "{web_a2a}"',
+            'export AGENT_CHAT_DATABASE_URL="sqlite+aiosqlite:///./state/web-a2a.db"',
+            f'export AGENT_CHAT_ENCRYPTION_KEY="{enc_key}"',
+            'export AGENT_CHAT_SECRET_KEY="change-me-local"',
+            f'export AGENT_CHAT_A2A_JWT_SIGNING_KEY_PATH="{web_a2a / ".keys" / "jwt.key"}"',
+            "mkdir -p state",
+            "uv run alembic upgrade head",
+            "exec uv run uvicorn agent_chat.app:app --host 0.0.0.0 --port 8000",
+        ],
+    )
+    _sh(
+        "test-local.vars.sh",
+        [
+            f'export START_MOTO="{"1" if start_moto else "0"}"',
+            f'export MCP_FS_MOUNT="{mount}"',
+            f'export ADMIN_EMAIL="{admin}"',
+        ],
+    )
+
     print("prepared:")
     print(f"  keys distributed to mcp-fs, {config_a2a}, {web_a2a}")
     print("  wrote config/test-local.yaml")
-    print("  wrote state/run-moto.bat, run-mcp-fs.bat, run-config-a2a.bat, run-web-a2a.bat")
+    print("  wrote state/run-*.bat and run-*.sh (per-service launch scripts)")
     print(f"  start moto: {start_moto} (port {moto_port})")
 
 
