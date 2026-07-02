@@ -28,6 +28,10 @@ ktab() { kitty @ launch --type=tab --tab-title="$1" --copy-env --hold bash "$FS_
 
 if [ "${START_MOTO:-0}" = "1" ]; then
   echo "[2/6] Starting moto server..."
+  # moto is in-memory; reset mcp-fs's SQLite metadata and ACL so they stay
+  # consistent with a freshly emptied blob store (no stale nodes, no
+  # ERR_PROJECT_EXISTS on re-run).
+  rm -rf state/volumes state/admin.db state/admin.db-wal state/admin.db-shm 2>/dev/null || true
   ktab moto run-moto.sh
   sleep 4
 else

@@ -21,6 +21,9 @@ call state\test-local.vars.bat
 
 if "%START_MOTO%"=="1" (
   echo [2/6] Starting moto server...
+  REM moto is in-memory; reset mcp-fs's SQLite state to stay consistent with an empty blob store.
+  if exist state\volumes rmdir /s /q state\volumes
+  del /q state\admin.db state\admin.db-wal state\admin.db-shm >nul 2>&1
   start "moto" cmd /k call state\run-moto.bat
   timeout /t 4 /nobreak >nul
 ) else (
