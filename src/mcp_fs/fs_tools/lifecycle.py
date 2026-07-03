@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.types import ToolAnnotations
 
+from mcp_fs import fs_ops
 from mcp_fs.models import ErrorCode, ToolError
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
     from mcp_fs.context import ToolContext
-    from mcp_fs.volume import VolumeClient
 
 _READ_ONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, destructiveHint=False)
 _DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=False)
@@ -81,22 +81,16 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         recursive: bool = False,
     ) -> dict[str, Any]:
         person, client = await ctx.client(mount_id)
-        src = ctx.norm(source)
-        dst = ctx.norm(destination)
-        if not await client.exists(src):
-            raise ToolError(ErrorCode.NOT_FOUND, f"'{src}' does not exist")
-        if await client.exists(dst) and not overwrite:
-            raise ToolError(ErrorCode.NO_CLOBBER, f"'{dst}' exists (pass overwrite=true)")
-        if await client.is_dir(src):
-            if not recursive:
-                raise ToolError(ErrorCode.INVALID_ARGUMENT, f"'{src}' is a directory (pass recursive=true)")
-            await _copy_tree(client, src, dst)
-        else:
-            data = await client.read_bytes(src)
-            ctx.safety.charge_write(person, mount_id, len(data))
-            await client.write_bytes_atomic(dst, data)
-        ctx.safety.record_audit(person, mount_id, "copy", src, f"-> {dst}")
-        return {"source": src, "destination": dst}
+        return await fs_ops.copy_path(
+            client,
+            ctx.safety,
+            person,
+            mount_id,
+            ctx.norm(source),
+            ctx.norm(destination),
+            overwrite=overwrite,
+            recursive=recursive,
+        )
 
     @mcp.tool(
         name="fs.list_allowed_roots", annotations=_READ_ONLY, description="List the volume roots the caller can access."
@@ -119,15 +113,3 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
                 for entry in recent
             ]
         }
-
-
-async def _copy_tree(client: VolumeClient, src: str, dst: str) -> None:
-    await client.makedirs(dst, exist_ok=True)
-    for name, kind, _size, _mtime in await client.listdir(src):
-        child_src = f"{src.rstrip('/')}/{name}"
-        child_dst = f"{dst.rstrip('/')}/{name}"
-        if kind == "dir":
-            await _copy_tree(client, child_src, child_dst)
-        else:
-            data = await client.read_bytes(child_src)
-            await client.write_bytes_atomic(child_dst, data)

@@ -37,6 +37,23 @@ an unknown project `404`, no identity `401`, an out-of-bounds path `400`.
 | POST | `/{mount}/upload` | multipart `files[]`, `directory`, `paths[]` | upload files; per-file relative `paths` do a recursive folder upload |
 | GET | `/{mount}/download` | `?path=` | download one file (right MIME, attachment) |
 | GET | `/{mount}/download-zip` | `?path=/dir` | download a folder as a streamed zip |
+| GET | `/{mount}/read` | `?path=&offset_lines=&limit_lines=&line_numbered=` | line-numbered, paged text read |
+| GET | `/{mount}/read-bytes` | `?path=&offset=&length=` | raw bytes as base64 + MIME |
+| GET | `/{mount}/stat` | `?path=` | POSIX metadata |
+| GET | `/{mount}/exists` | `?path=` | existence + kind |
+| GET | `/{mount}/hash` | `?path=&algo=` | content hash (md5/sha1/sha256/sha512) |
+| GET | `/{mount}/count-lines` | `?path=` | line count |
+| GET | `/{mount}/glob` | `?pattern=&root=&exclude_patterns=` | find files by glob, newest first |
+| GET | `/{mount}/grep` | `?pattern=&root=&output_mode=&...` | search contents (files/content/count) |
+| POST | `/{mount}/copy` | `{source, destination, overwrite, recursive}` | copy a file or tree |
+| POST | `/{mount}/extract-text` | `{path, max_chars, preview_chars, ocr, refresh}` | extract to a `.md` companion; returns `{md_path, preview, cached}` |
+| POST | `/{mount}/write-docx` | `{path, markdown, title, overwrite}` | render Markdown to a `.docx` |
+| GET | `/{mount}/audit-log` | `?since=&limit=` | recent session mutations |
+
+The rows below the zip line mirror the MCP `fs.*` tools: both planes are thin
+adapters over the same `fs_ops` module and the same `VolumeClient`, so what you
+can do over the API and over the agent tools is iso (minus tree-sitter and the
+`admin.*` project/member operations, which stay on their own surfaces).
 
 ## UI
 

@@ -36,6 +36,7 @@ make docker-build      # build the Docker image
 - `identity.py` / `authz` (in sqlite_admin) : verified RS256 bearer (X-Forwarded-Authorization), owner/members.
 - `context.py` : `ToolContext` (services injected into each tool).
 - `fs_tools/` : read, write, edit (+ `patch_v4a`), search, listing, metadata, lifecycle, documents.
+- `fs_ops.py` : single implementation of each fs operation, shared by the `fs.*` tools and the `/api/fs` data plane (iso surfaces).
 - `extract.py` / `docx_writer.py` : pure-Python doc text extraction (PDF/DOCX/PPTX/XLSX/HTML/CSV/img) and Markdown->docx.
 - `treesitter.py` : find_definition / find_references.
 - `admin_tools.py` : create/delete/list projects, add/remove/list members.

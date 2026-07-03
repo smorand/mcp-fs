@@ -15,10 +15,11 @@ import posixpath
 import zipfile
 from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
+from mcp_fs import fs_ops
 from mcp_fs.models import ErrorCode, ToolError
 
 if TYPE_CHECKING:
@@ -54,6 +55,28 @@ class MoveBody(BaseModel):
     destination: str
 
 
+class CopyBody(BaseModel):
+    source: str
+    destination: str
+    overwrite: bool = False
+    recursive: bool = False
+
+
+class ExtractBody(BaseModel):
+    path: str
+    max_chars: int = 200_000
+    preview_chars: int = 4_000
+    ocr: bool = True
+    refresh: bool = False
+
+
+class WriteDocxBody(BaseModel):
+    path: str
+    markdown: str
+    title: str | None = None
+    overwrite: bool = False
+
+
 def build_dataplane_router(ctx: ToolContext, identity: Callable[..., Awaitable[str]]) -> APIRouter:
     """Return the ``/api/fs`` router; ``identity`` yields the caller's email."""
     router = APIRouter(prefix="/api/fs", tags=["fs"])
@@ -70,6 +93,13 @@ def build_dataplane_router(ctx: ToolContext, identity: Callable[..., Awaitable[s
         except ToolError as exc:
             raise _http(exc) from exc
         return await ctx.manager.get_client(mount_id)
+
+    async def _guard(coro: Awaitable[dict[str, Any]]) -> dict[str, Any]:
+        """Await an fs_ops call, mapping its ToolError to the right HTTP status."""
+        try:
+            return await coro
+        except ToolError as exc:
+            raise _http(exc) from exc
 
     @router.get("/roots")
     async def roots(person: str = Depends(identity)) -> dict[str, Any]:
@@ -168,5 +198,164 @@ def build_dataplane_router(ctx: ToolContext, identity: Callable[..., Awaitable[s
             media_type="application/zip",
             headers={"Content-Disposition": f'attachment; filename="{label}.zip"'},
         )
+
+    # -- parity with the MCP fs.* tools (same fs_ops under the hood) -----------
+    @router.get("/{mount_id}/read")
+    async def read(
+        mount_id: str,
+        path: str,
+        offset_lines: int = 0,
+        limit_lines: int = 2000,
+        line_numbered: bool = True,
+        person: str = Depends(identity),
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.read_window(
+                client,
+                ctx.safety,
+                person,
+                mount_id,
+                _norm(path),
+                offset_lines=offset_lines,
+                limit_lines=limit_lines,
+                line_numbered=line_numbered,
+            )
+        )
+
+    @router.get("/{mount_id}/read-bytes")
+    async def read_bytes(
+        mount_id: str, path: str, offset: int = 0, length: int = 65536, person: str = Depends(identity)
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.read_bytes_b64(client, ctx.safety, person, mount_id, _norm(path), offset=offset, length=length)
+        )
+
+    @router.get("/{mount_id}/stat")
+    async def stat(mount_id: str, path: str, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.stat_info(client, _norm(path)))
+
+    @router.get("/{mount_id}/exists")
+    async def exists(mount_id: str, path: str, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.exists_info(client, _norm(path)))
+
+    @router.get("/{mount_id}/hash")
+    async def hash_path(
+        mount_id: str, path: str, algo: str = "sha256", person: str = Depends(identity)
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.hash_file(client, _norm(path), algo))
+
+    @router.get("/{mount_id}/count-lines")
+    async def count_lines(mount_id: str, path: str, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.count_lines(client, _norm(path)))
+
+    @router.get("/{mount_id}/glob")
+    async def glob(
+        mount_id: str,
+        pattern: str,
+        root: str = "/",
+        exclude_patterns: Annotated[list[str], Query()] = [],  # noqa: B006 - FastAPI query default
+        person: str = Depends(identity),
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.glob_files(client, _norm(root), pattern, extra_excludes=tuple(exclude_patterns)))
+
+    @router.get("/{mount_id}/grep")
+    async def grep(
+        mount_id: str,
+        pattern: str,
+        root: str = "/",
+        include_glob: str | None = None,
+        exclude_glob: str | None = None,
+        regex: bool = True,
+        case_sensitive: bool = True,
+        output_mode: str = "content",
+        context_lines: int = 0,
+        max_matches: int = 100,
+        person: str = Depends(identity),
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.grep_files(
+                client,
+                _norm(root),
+                pattern,
+                include_glob=include_glob,
+                exclude_glob=exclude_glob,
+                regex=regex,
+                case_sensitive=case_sensitive,
+                output_mode=output_mode,
+                context_lines=context_lines,
+                max_matches=max_matches,
+            )
+        )
+
+    @router.post("/{mount_id}/copy")
+    async def copy(mount_id: str, body: CopyBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.copy_path(
+                client,
+                ctx.safety,
+                person,
+                mount_id,
+                _norm(body.source),
+                _norm(body.destination),
+                overwrite=body.overwrite,
+                recursive=body.recursive,
+            )
+        )
+
+    @router.post("/{mount_id}/extract-text")
+    async def extract_text(mount_id: str, body: ExtractBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.extract_document(
+                client,
+                ctx.safety,
+                person,
+                mount_id,
+                _norm(body.path),
+                max_chars=body.max_chars,
+                preview_chars=body.preview_chars,
+                ocr=body.ocr,
+                refresh=body.refresh,
+            )
+        )
+
+    @router.post("/{mount_id}/write-docx")
+    async def write_docx(mount_id: str, body: WriteDocxBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.write_docx(
+                client,
+                ctx.safety,
+                person,
+                mount_id,
+                _norm(body.path),
+                body.markdown,
+                title=body.title,
+                overwrite=body.overwrite,
+            )
+        )
+
+    @router.get("/{mount_id}/audit-log")
+    async def audit_log(
+        mount_id: str, since: float | None = None, limit: int = 20, person: str = Depends(identity)
+    ) -> dict[str, Any]:
+        await _client(mount_id, person)
+        entries = list(ctx.safety.session(person, mount_id).audit)
+        if since is not None:
+            entries = [entry for entry in entries if entry.timestamp >= since]
+        return {
+            "entries": [
+                {"timestamp": e.timestamp, "op": e.op, "path": e.path, "detail": e.detail} for e in entries[-limit:]
+            ]
+        }
 
     return router

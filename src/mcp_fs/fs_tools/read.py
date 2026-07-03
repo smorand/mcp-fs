@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import base64
-import mimetypes
 from typing import TYPE_CHECKING, Any
 
 from mcp.types import ToolAnnotations
 
+from mcp_fs import fs_ops
+from mcp_fs.fs_ops import number_lines as _number_lines
 from mcp_fs.models import ErrorCode, ToolError
 
 if TYPE_CHECKING:
@@ -16,10 +16,6 @@ if TYPE_CHECKING:
     from mcp_fs.context import ToolContext
 
 _READ_ONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, destructiveHint=False)
-
-
-def _number_lines(lines: list[str], start: int) -> str:
-    return "\n".join(f"{start + offset}\t{line}" for offset, line in enumerate(lines))
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
@@ -34,36 +30,25 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         line_numbered: bool = True,
     ) -> dict[str, Any]:
         person, client = await ctx.client(mount_id)
-        norm = ctx.norm(path)
-        text = await client.read_text(norm)
-        ctx.safety.record_read(person, mount_id, norm)
-        lines = text.splitlines()
-        total = len(lines)
-        cap = min(limit_lines, ctx.config.safety.max_read_lines)
-        window = lines[offset_lines : offset_lines + cap]
-        truncated = offset_lines + cap < total
-        content = _number_lines(window, offset_lines + 1) if line_numbered else "\n".join(window)
-        return {
-            "content": content,
-            "total_lines": total,
-            "truncated": truncated,
-            "next_offset": offset_lines + cap if truncated else None,
-        }
+        return await fs_ops.read_window(
+            client,
+            ctx.safety,
+            person,
+            mount_id,
+            ctx.norm(path),
+            offset_lines=offset_lines,
+            limit_lines=limit_lines,
+            line_numbered=line_numbered,
+        )
 
     @mcp.tool(name="fs.read_bytes", annotations=_READ_ONLY, description="Read raw bytes (base64) with MIME type.")
     async def fs_read_bytes(
         mount_id: str, path: str, offset_bytes: int = 0, length_bytes: int = 65536
     ) -> dict[str, Any]:
         person, client = await ctx.client(mount_id)
-        norm = ctx.norm(path)
-        data = await client.read_bytes(norm, offset_bytes, length_bytes)
-        ctx.safety.record_read(person, mount_id, norm)
-        mime, _ = mimetypes.guess_type(norm)
-        return {
-            "base64": base64.b64encode(data).decode("ascii"),
-            "mime_type": mime or "application/octet-stream",
-            "length": len(data),
-        }
+        return await fs_ops.read_bytes_b64(
+            client, ctx.safety, person, mount_id, ctx.norm(path), offset=offset_bytes, length=length_bytes
+        )
 
     @mcp.tool(
         name="fs.read_lines", annotations=_READ_ONLY, description="Read an inclusive line range [start_line, end_line]."
@@ -140,9 +125,7 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     @mcp.tool(name="fs.count_lines", annotations=_READ_ONLY, description="Count lines without returning content.")
     async def fs_count_lines(mount_id: str, path: str) -> dict[str, Any]:
         _, client = await ctx.client(mount_id)
-        norm = ctx.norm(path)
-        text = await client.read_text(norm)
-        return {"total_lines": len(text.splitlines())}
+        return await fs_ops.count_lines(client, ctx.norm(path))
 
 
 def _indent_block(lines: list[str], anchor: int, max_lines: int) -> tuple[int, int]:
