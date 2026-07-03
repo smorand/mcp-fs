@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import difflib
 import fnmatch
 import hashlib
 import mimetypes
@@ -20,8 +21,10 @@ import re
 import stat as stat_module
 from typing import TYPE_CHECKING, Any
 
+from mcp_fs import treesitter
 from mcp_fs.docx_writer import markdown_to_docx
 from mcp_fs.extract import UnsupportedDocument, extract
+from mcp_fs.fs_tools.patch_v4a import OpKind, apply_update, parse_patch
 from mcp_fs.models import ErrorCode, ToolError
 
 if TYPE_CHECKING:
@@ -387,3 +390,391 @@ async def write_docx(
     safety.record_read(person, mount_id, norm)
     safety.record_audit(person, mount_id, "write_docx", norm, f"{len(data)} bytes")
     return {"path": norm, "bytes_written": len(data), "overwritten": exists}
+
+
+# --------------------------------------------------------------------------- #
+# Read variants
+# --------------------------------------------------------------------------- #
+async def read_lines(
+    client: VolumeClient, safety: SafetyManager, person: str, mount_id: str, path: str, start_line: int, end_line: int
+) -> dict[str, Any]:
+    text = await client.read_text(path)
+    safety.record_read(person, mount_id, path)
+    lines = text.splitlines()
+    window = lines[max(start_line - 1, 0) : end_line]
+    return {"content": number_lines(window, max(start_line, 1)), "total_lines": len(lines)}
+
+
+def _indent_of(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def _indent_block(lines: list[str], anchor: int, max_lines: int) -> tuple[int, int]:
+    if not lines:
+        raise ToolError(ErrorCode.INVALID_ARGUMENT, "file is empty")
+    anchor = max(0, min(anchor, len(lines) - 1))
+    base_indent = _indent_of(lines[anchor])
+    start = anchor
+    while start > 0:
+        previous = lines[start - 1]
+        if previous.strip() and _indent_of(previous) < base_indent:
+            start -= 1
+            break
+        start -= 1
+    end = anchor + 1
+    while end < len(lines) and end - start < max_lines:
+        if lines[end].strip() and _indent_of(lines[end]) < base_indent:
+            break
+        end += 1
+    return start, end
+
+
+async def read_section(
+    client: VolumeClient,
+    safety: SafetyManager,
+    person: str,
+    mount_id: str,
+    path: str,
+    anchor_line: int,
+    max_lines: int = 200,
+) -> dict[str, Any]:
+    text = await client.read_text(path)
+    safety.record_read(person, mount_id, path)
+    lines = text.splitlines()
+    start, end = _indent_block(lines, anchor_line - 1, max_lines)
+    return {"content": number_lines(lines[start:end], start + 1), "start_line": start + 1, "end_line": end}
+
+
+async def read_many(
+    client: VolumeClient,
+    safety: SafetyManager,
+    person: str,
+    mount_id: str,
+    paths: list[str],
+    per_file_cap_lines: int = 500,
+) -> dict[str, Any]:
+    results: list[dict[str, Any]] = []
+    for raw_path in paths:
+        try:
+            norm = safety.normalize_path(raw_path)
+            text = await client.read_text(norm)
+            safety.record_read(person, mount_id, norm)
+            lines = text.splitlines()
+            results.append(
+                {
+                    "path": norm,
+                    "content": number_lines(lines[:per_file_cap_lines], 1),
+                    "truncated": len(lines) > per_file_cap_lines,
+                }
+            )
+        except (ToolError, OSError) as exc:
+            results.append({"path": raw_path, "error": str(exc)})
+    return {"files": results}
+
+
+async def head(
+    client: VolumeClient, safety: SafetyManager, person: str, mount_id: str, path: str, lines: int = 20
+) -> dict[str, Any]:
+    text = await client.read_text(path)
+    safety.record_read(person, mount_id, path)
+    return {"content": number_lines(text.splitlines()[:lines], 1)}
+
+
+async def tail(
+    client: VolumeClient, safety: SafetyManager, person: str, mount_id: str, path: str, lines: int = 20
+) -> dict[str, Any]:
+    text = await client.read_text(path)
+    safety.record_read(person, mount_id, path)
+    all_lines = text.splitlines()
+    start = max(len(all_lines) - lines, 0)
+    return {"content": number_lines(all_lines[start:], start + 1)}
+
+
+# --------------------------------------------------------------------------- #
+# Recursive tree listing
+# --------------------------------------------------------------------------- #
+_TREE_CAP = 2000
+
+
+async def build_tree(
+    client: VolumeClient, path: str, depth: int, excludes: set[str], with_sizes: bool, counter: list[int]
+) -> list[dict[str, Any]]:
+    if depth < 0 or counter[0] >= _TREE_CAP:
+        return []
+    nodes: list[dict[str, Any]] = []
+    for name, kind, size, _mtime in await client.listdir(path):
+        if name in excludes:
+            continue
+        counter[0] += 1
+        if counter[0] >= _TREE_CAP:
+            break
+        node: dict[str, Any] = {"name": name, "kind": kind}
+        if with_sizes and kind == "file":
+            node["size"] = size
+        if kind == "dir" and depth > 0:
+            node["children"] = await build_tree(
+                client, f"{path.rstrip('/')}/{name}", depth - 1, excludes, with_sizes, counter
+            )
+        nodes.append(node)
+    return nodes
+
+
+async def tree(
+    client: VolumeClient,
+    root: str,
+    *,
+    max_depth: int = 3,
+    exclude_patterns: tuple[str, ...] = (),
+    with_sizes: bool = False,
+) -> dict[str, Any]:
+    tree_excludes = {".git", "node_modules", "target", "dist", ".build", "coverage"} | set(exclude_patterns)
+    counter = [0]
+    nodes = await build_tree(client, root, max_depth, tree_excludes, with_sizes, counter)
+    return {"path": root, "tree": nodes, "truncated": counter[0] >= _TREE_CAP}
+
+
+# --------------------------------------------------------------------------- #
+# Write / edit
+# --------------------------------------------------------------------------- #
+def _diff(old: str, new: str, path: str) -> str:
+    return "".join(difflib.unified_diff(old.splitlines(keepends=True), new.splitlines(keepends=True), path, path))
+
+
+async def _commit(
+    safety: SafetyManager, person: str, mount_id: str, client: VolumeClient, norm: str, new_text: str, op: str
+) -> None:
+    data = new_text.encode("utf-8")
+    safety.charge_write(person, mount_id, len(data))
+    await client.write_bytes_atomic(norm, data)
+    safety.record_audit(person, mount_id, op, norm)
+
+
+async def write_text(
+    client: VolumeClient,
+    safety: SafetyManager,
+    person: str,
+    mount_id: str,
+    norm: str,
+    content: str,
+    *,
+    overwrite: bool = False,
+    create_parents: bool = True,
+) -> dict[str, Any]:
+    exists = await client.exists(norm)
+    if exists and not overwrite:
+        raise ToolError(ErrorCode.NO_CLOBBER, f"'{norm}' exists (pass overwrite=true)")
+    diff = ""
+    if exists:
+        safety.ensure_read_before_write(person, mount_id, norm)
+        old = await client.read_text(norm)
+        diff = _diff(old, content, norm)
+    if create_parents:
+        parent = norm.rsplit("/", 1)[0] or "/"
+        if parent != "/":
+            await client.makedirs(parent, exist_ok=True)
+    data = content.encode("utf-8")
+    safety.charge_write(person, mount_id, len(data))
+    await client.write_bytes_atomic(norm, data)
+    safety.record_read(person, mount_id, norm)
+    safety.record_audit(person, mount_id, "write", norm, f"{len(data)} bytes")
+    return {"path": norm, "bytes_written": len(data), "overwritten": exists, "diff": diff}
+
+
+async def append_text(
+    client: VolumeClient,
+    safety: SafetyManager,
+    person: str,
+    mount_id: str,
+    norm: str,
+    content: str,
+    *,
+    create: bool = False,
+) -> dict[str, Any]:
+    if not await client.exists(norm) and not create:
+        raise ToolError(ErrorCode.NOT_FOUND, f"'{norm}' does not exist (pass create=true)")
+    data = content.encode("utf-8")
+    safety.charge_write(person, mount_id, len(data))
+    await client.append_bytes(norm, data)
+    safety.record_audit(person, mount_id, "append", norm, f"{len(data)} bytes")
+    return {"path": norm, "bytes_appended": len(data)}
+
+
+async def create_empty(
+    client: VolumeClient, safety: SafetyManager, person: str, mount_id: str, norm: str, *, exist_ok: bool = False
+) -> dict[str, Any]:
+    if await client.exists(norm):
+        if not exist_ok:
+            raise ToolError(ErrorCode.NO_CLOBBER, f"'{norm}' already exists")
+        return {"path": norm, "created": False}
+    await client.create_empty(norm)
+    safety.record_audit(person, mount_id, "create_empty", norm)
+    return {"path": norm, "created": True}
+
+
+_FUZZY_THRESHOLD = 0.6
+
+
+def _apply_unique(text: str, old_string: str, new_string: str, *, replace_all: bool, path: str) -> str:
+    count = text.count(old_string)
+    if count == 0:
+        raise ToolError(ErrorCode.NO_MATCH, f"old_string not found in '{path}'")
+    if count > 1 and not replace_all:
+        raise ToolError(ErrorCode.AMBIGUOUS_MATCH, f"old_string matches {count} sites in '{path}' (use replace_all)")
+    return text.replace(old_string, new_string) if replace_all else text.replace(old_string, new_string, 1)
+
+
+def _fuzzy_replace(text: str, search_block: str, replace_block: str, path: str) -> str:
+    lines = text.splitlines(keepends=True)
+    span = len(search_block.splitlines(keepends=True))
+    best_ratio, best_index = 0.0, -1
+    for start in range(0, max(len(lines) - span + 1, 0)):
+        candidate = "".join(lines[start : start + span])
+        ratio = difflib.SequenceMatcher(None, candidate, search_block).ratio()
+        if ratio > best_ratio:
+            best_ratio, best_index = ratio, start
+    if best_index < 0 or best_ratio < _FUZZY_THRESHOLD:
+        raise ToolError(ErrorCode.NO_MATCH, f"no fuzzy match for search_block in '{path}'")
+    block = replace_block if replace_block.endswith("\n") else replace_block + "\n"
+    return "".join(lines[:best_index]) + block + "".join(lines[best_index + span :])
+
+
+async def edit_unique(
+    client: VolumeClient,
+    safety: SafetyManager,
+    person: str,
+    mount_id: str,
+    norm: str,
+    old_string: str,
+    new_string: str,
+    *,
+    replace_all: bool = False,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    safety.ensure_read_before_write(person, mount_id, norm)
+    old = await client.read_text(norm)
+    new = _apply_unique(old, old_string, new_string, replace_all=replace_all, path=norm)
+    diff = _diff(old, new, norm)
+    if not dry_run:
+        await _commit(safety, person, mount_id, client, norm, new, "edit")
+    return {"path": norm, "applied": not dry_run, "diff": diff}
+
+
+async def multi_edit(
+    client: VolumeClient,
+    safety: SafetyManager,
+    person: str,
+    mount_id: str,
+    norm: str,
+    edits: list[dict[str, Any]],
+    *,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    safety.ensure_read_before_write(person, mount_id, norm)
+    old = await client.read_text(norm)
+    new = old
+    for spec in edits:
+        new = _apply_unique(
+            new,
+            str(spec["old_string"]),
+            str(spec["new_string"]),
+            replace_all=bool(spec.get("replace_all", False)),
+            path=norm,
+        )
+    diff = _diff(old, new, norm)
+    if not dry_run:
+        await _commit(safety, person, mount_id, client, norm, new, "multi_edit")
+    return {"path": norm, "applied": not dry_run, "edits": len(edits), "diff": diff}
+
+
+async def search_replace(
+    client: VolumeClient,
+    safety: SafetyManager,
+    person: str,
+    mount_id: str,
+    norm: str,
+    search_block: str,
+    replace_block: str,
+    *,
+    fuzzy: bool = False,
+) -> dict[str, Any]:
+    safety.ensure_read_before_write(person, mount_id, norm)
+    old = await client.read_text(norm)
+    if search_block in old:
+        new = old.replace(search_block, replace_block, 1)
+    elif fuzzy:
+        new = _fuzzy_replace(old, search_block, replace_block, norm)
+    else:
+        raise ToolError(ErrorCode.NO_MATCH, f"search_block not found in '{norm}'")
+    await _commit(safety, person, mount_id, client, norm, new, "search_replace")
+    return {"path": norm, "applied": True, "diff": _diff(old, new, norm)}
+
+
+async def insert_at_line(
+    client: VolumeClient, safety: SafetyManager, person: str, mount_id: str, norm: str, line: int, content: str
+) -> dict[str, Any]:
+    safety.ensure_read_before_write(person, mount_id, norm)
+    old = await client.read_text(norm)
+    lines = old.splitlines(keepends=True)
+    position = max(0, min(line - 1, len(lines)))
+    insert = content if content.endswith("\n") else content + "\n"
+    new = "".join(lines[:position]) + insert + "".join(lines[position:])
+    await _commit(safety, person, mount_id, client, norm, new, "insert_at_line")
+    return {"path": norm, "applied": True, "line": line}
+
+
+async def apply_patch(
+    client: VolumeClient, safety: SafetyManager, person: str, mount_id: str, patch_text: str
+) -> dict[str, Any]:
+    ops = parse_patch(patch_text)
+    touched: list[dict[str, str]] = []
+    for op in ops:
+        norm = safety.normalize_path(op.path)
+        if op.kind is OpKind.ADD:
+            data = op.add_content.encode("utf-8")
+            safety.charge_write(person, mount_id, len(data))
+            await client.write_bytes_atomic(norm, data)
+            touched.append({"path": norm, "op": "add"})
+        elif op.kind is OpKind.DELETE:
+            safety.ensure_read_before_write(person, mount_id, norm)
+            await client.remove(norm)
+            touched.append({"path": norm, "op": "delete"})
+        else:
+            safety.ensure_read_before_write(person, mount_id, norm)
+            old = await client.read_text(norm)
+            new = apply_update(old, op)
+            await _commit(safety, person, mount_id, client, norm, new, "apply_patch")
+            if op.move_to:
+                dst = safety.normalize_path(op.move_to)
+                await client.rename(norm, dst)
+                touched.append({"path": norm, "op": "update", "moved_to": dst})
+            else:
+                touched.append({"path": norm, "op": "update"})
+        safety.record_audit(person, mount_id, "apply_patch", norm)
+    return {"files": touched}
+
+
+# --------------------------------------------------------------------------- #
+# Tree-sitter code search
+# --------------------------------------------------------------------------- #
+async def find_definitions(client: VolumeClient, root: str, name: str, kind: str | None = None) -> dict[str, Any]:
+    results: list[dict[str, Any]] = []
+    for path, _ in await iter_files(client, root, DEFAULT_EXCLUDES):
+        if treesitter.language_for(path) is None:
+            continue
+        source = await client.read_bytes(path)
+        for match in treesitter.find_definitions(path, source, name, kind):
+            results.append({"path": match.path, "name": match.name, "kind": match.kind, "line": match.line})
+    return {"definitions": results}
+
+
+async def find_references(client: VolumeClient, root: str, name: str) -> dict[str, Any]:
+    if not name:
+        raise ToolError(ErrorCode.INVALID_ARGUMENT, "name is required")
+    results: list[dict[str, Any]] = []
+    for path, _ in await iter_files(client, root, DEFAULT_EXCLUDES):
+        if treesitter.language_for(path) is None:
+            continue
+        source = await client.read_bytes(path)
+        for match in treesitter.find_references(path, source, name):
+            results.append({"path": match.path, "line": match.line, "kind": match.kind})
+    return {"references": results}

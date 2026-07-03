@@ -77,6 +77,56 @@ def test_extract_text_and_write_docx_over_api() -> None:
     assert downloaded.content[:2] == b"PK"  # a real .docx (zip)
 
 
+def test_write_edit_read_variants_tree_and_code_search() -> None:
+    client = _build()
+    src = "def hello():\n    return 1\n"
+    assert client.post("/api/fs/proj-a/write", json={"path": "/code/app.py", "content": src}).status_code == 200
+
+    assert (
+        "def hello"
+        in client.get(
+            "/api/fs/proj-a/read-lines", params={"path": "/code/app.py", "start_line": 1, "end_line": 1}
+        ).json()["content"]
+    )
+    assert "def hello" in client.get("/api/fs/proj-a/head", params={"path": "/code/app.py"}).json()["content"]
+    assert "return 1" in client.get("/api/fs/proj-a/tail", params={"path": "/code/app.py"}).json()["content"]
+    assert client.get("/api/fs/proj-a/read-section", params={"path": "/code/app.py", "anchor_line": 2}).json()[
+        "content"
+    ]
+
+    many = client.post("/api/fs/proj-a/read-many", json={"paths": ["/code/app.py", "/nope.txt"]}).json()["files"]
+    assert any("content" in f for f in many) and any("error" in f for f in many)
+
+    assert client.post("/api/fs/proj-a/append", json={"path": "/code/app.py", "content": "# tail\n"}).status_code == 200
+    assert client.post(
+        "/api/fs/proj-a/edit", json={"path": "/code/app.py", "old_string": "return 1", "new_string": "return 2"}
+    ).json()["applied"]
+    assert "return 2" in client.get("/api/fs/proj-a/read", params={"path": "/code/app.py"}).json()["content"]
+    assert client.post(
+        "/api/fs/proj-a/multi-edit",
+        json={"path": "/code/app.py", "edits": [{"old_string": "hello", "new_string": "hi"}]},
+    ).json()["applied"]
+    assert client.post(
+        "/api/fs/proj-a/search-replace",
+        json={"path": "/code/app.py", "search_block": "    return 2\n", "replace_block": "    return 3\n"},
+    ).json()["applied"]
+    assert (
+        client.post(
+            "/api/fs/proj-a/insert-at-line", json={"path": "/code/app.py", "line": 1, "content": "# top"}
+        ).status_code
+        == 200
+    )
+    assert client.post("/api/fs/proj-a/create-empty", json={"path": "/code/empty.txt"}).json()["created"]
+
+    tree = client.get("/api/fs/proj-a/tree", params={"path": "/"}).json()["tree"]
+    assert any(node["name"] == "code" for node in tree)
+
+    defs = client.get("/api/fs/proj-a/find-definition", params={"name": "hi"}).json()["definitions"]
+    assert any(d["name"] == "hi" for d in defs)
+    refs = client.get("/api/fs/proj-a/find-references", params={"name": "hi"}).json()
+    assert "references" in refs
+
+
 def test_api_non_member_forbidden_on_parity_endpoint() -> None:
     from tests.test_webui import _bearer
 

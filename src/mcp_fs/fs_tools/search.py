@@ -6,9 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.types import ToolAnnotations
 
-from mcp_fs import fs_ops, treesitter
-from mcp_fs.fs_ops import DEFAULT_EXCLUDES
-from mcp_fs.models import ErrorCode, ToolError
+from mcp_fs import fs_ops
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -60,29 +58,11 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
     )
     async def fs_find_definition(mount_id: str, name: str, root: str = "/", kind: str | None = None) -> dict[str, Any]:
         _, client = await ctx.client(mount_id)
-        base = ctx.norm(root)
-        results: list[dict[str, Any]] = []
-        for path, _ in await fs_ops.iter_files(client, base, DEFAULT_EXCLUDES):
-            if treesitter.language_for(path) is None:
-                continue
-            source = await client.read_bytes(path)
-            for match in treesitter.find_definitions(path, source, name, kind):
-                results.append({"path": match.path, "name": match.name, "kind": match.kind, "line": match.line})
-        return {"definitions": results}
+        return await fs_ops.find_definitions(client, ctx.norm(root), name, kind)
 
     @mcp.tool(
         name="fs.find_references", annotations=_READ_ONLY, description="Find identifier references via tree-sitter."
     )
     async def fs_find_references(mount_id: str, name: str, root: str = "/") -> dict[str, Any]:
-        if not name:
-            raise ToolError(ErrorCode.INVALID_ARGUMENT, "name is required")
         _, client = await ctx.client(mount_id)
-        base = ctx.norm(root)
-        results: list[dict[str, Any]] = []
-        for path, _ in await fs_ops.iter_files(client, base, DEFAULT_EXCLUDES):
-            if treesitter.language_for(path) is None:
-                continue
-            source = await client.read_bytes(path)
-            for match in treesitter.find_references(path, source, name):
-                results.append({"path": match.path, "line": match.line, "kind": match.kind})
-        return {"references": results}
+        return await fs_ops.find_references(client, ctx.norm(root), name)

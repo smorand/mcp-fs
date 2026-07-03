@@ -77,6 +77,60 @@ class WriteDocxBody(BaseModel):
     overwrite: bool = False
 
 
+class WriteBody(BaseModel):
+    path: str
+    content: str
+    overwrite: bool = False
+    create_parents: bool = True
+
+
+class AppendBody(BaseModel):
+    path: str
+    content: str
+    create: bool = False
+
+
+class CreateEmptyBody(BaseModel):
+    path: str
+    exist_ok: bool = False
+
+
+class EditBody(BaseModel):
+    path: str
+    old_string: str
+    new_string: str
+    replace_all: bool = False
+    dry_run: bool = False
+
+
+class MultiEditBody(BaseModel):
+    path: str
+    edits: list[dict[str, Any]]
+    dry_run: bool = False
+
+
+class SearchReplaceBody(BaseModel):
+    path: str
+    search_block: str
+    replace_block: str
+    fuzzy: bool = False
+
+
+class InsertAtLineBody(BaseModel):
+    path: str
+    line: int
+    content: str
+
+
+class ApplyPatchBody(BaseModel):
+    patch_text: str
+
+
+class ReadManyBody(BaseModel):
+    paths: list[str]
+    per_file_cap_lines: int = 500
+
+
 def build_dataplane_router(ctx: ToolContext, identity: Callable[..., Awaitable[str]]) -> APIRouter:
     """Return the ``/api/fs`` router; ``identity`` yields the caller's email."""
     router = APIRouter(prefix="/api/fs", tags=["fs"])
@@ -357,5 +411,155 @@ def build_dataplane_router(ctx: ToolContext, identity: Callable[..., Awaitable[s
                 {"timestamp": e.timestamp, "op": e.op, "path": e.path, "detail": e.detail} for e in entries[-limit:]
             ]
         }
+
+    # -- read variants --------------------------------------------------------
+    @router.get("/{mount_id}/read-lines")
+    async def read_lines(
+        mount_id: str, path: str, start_line: int, end_line: int, person: str = Depends(identity)
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.read_lines(client, ctx.safety, person, mount_id, _norm(path), start_line, end_line))
+
+    @router.get("/{mount_id}/read-section")
+    async def read_section(
+        mount_id: str, path: str, anchor_line: int, max_lines: int = 200, person: str = Depends(identity)
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.read_section(client, ctx.safety, person, mount_id, _norm(path), anchor_line, max_lines)
+        )
+
+    @router.get("/{mount_id}/head")
+    async def head(mount_id: str, path: str, lines: int = 20, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.head(client, ctx.safety, person, mount_id, _norm(path), lines))
+
+    @router.get("/{mount_id}/tail")
+    async def tail(mount_id: str, path: str, lines: int = 20, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.tail(client, ctx.safety, person, mount_id, _norm(path), lines))
+
+    @router.post("/{mount_id}/read-many")
+    async def read_many(mount_id: str, body: ReadManyBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.read_many(client, ctx.safety, person, mount_id, body.paths, body.per_file_cap_lines))
+
+    @router.get("/{mount_id}/tree")
+    async def tree(
+        mount_id: str,
+        path: str = "/",
+        max_depth: int = 3,
+        exclude_patterns: Annotated[list[str], Query()] = [],  # noqa: B006 - FastAPI query default
+        with_sizes: bool = False,
+        person: str = Depends(identity),
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.tree(
+                client,
+                _norm(path),
+                max_depth=max_depth,
+                exclude_patterns=tuple(exclude_patterns),
+                with_sizes=with_sizes,
+            )
+        )
+
+    # -- write / edit ---------------------------------------------------------
+    @router.post("/{mount_id}/write")
+    async def write(mount_id: str, body: WriteBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.write_text(
+                client,
+                ctx.safety,
+                person,
+                mount_id,
+                _norm(body.path),
+                body.content,
+                overwrite=body.overwrite,
+                create_parents=body.create_parents,
+            )
+        )
+
+    @router.post("/{mount_id}/append")
+    async def append(mount_id: str, body: AppendBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.append_text(client, ctx.safety, person, mount_id, _norm(body.path), body.content, create=body.create)
+        )
+
+    @router.post("/{mount_id}/create-empty")
+    async def create_empty(mount_id: str, body: CreateEmptyBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.create_empty(client, ctx.safety, person, mount_id, _norm(body.path), exist_ok=body.exist_ok)
+        )
+
+    @router.post("/{mount_id}/edit")
+    async def edit(mount_id: str, body: EditBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.edit_unique(
+                client,
+                ctx.safety,
+                person,
+                mount_id,
+                _norm(body.path),
+                body.old_string,
+                body.new_string,
+                replace_all=body.replace_all,
+                dry_run=body.dry_run,
+            )
+        )
+
+    @router.post("/{mount_id}/multi-edit")
+    async def multi_edit(mount_id: str, body: MultiEditBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.multi_edit(client, ctx.safety, person, mount_id, _norm(body.path), body.edits, dry_run=body.dry_run)
+        )
+
+    @router.post("/{mount_id}/search-replace")
+    async def search_replace(mount_id: str, body: SearchReplaceBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.search_replace(
+                client,
+                ctx.safety,
+                person,
+                mount_id,
+                _norm(body.path),
+                body.search_block,
+                body.replace_block,
+                fuzzy=body.fuzzy,
+            )
+        )
+
+    @router.post("/{mount_id}/insert-at-line")
+    async def insert_at_line(mount_id: str, body: InsertAtLineBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(
+            fs_ops.insert_at_line(client, ctx.safety, person, mount_id, _norm(body.path), body.line, body.content)
+        )
+
+    @router.post("/{mount_id}/apply-patch")
+    async def apply_patch(mount_id: str, body: ApplyPatchBody, person: str = Depends(identity)) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.apply_patch(client, ctx.safety, person, mount_id, body.patch_text))
+
+    # -- code search (tree-sitter) --------------------------------------------
+    @router.get("/{mount_id}/find-definition")
+    async def find_definition(
+        mount_id: str, name: str, root: str = "/", kind: str | None = None, person: str = Depends(identity)
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.find_definitions(client, _norm(root), name, kind))
+
+    @router.get("/{mount_id}/find-references")
+    async def find_references(
+        mount_id: str, name: str, root: str = "/", person: str = Depends(identity)
+    ) -> dict[str, Any]:
+        client = await _client(mount_id, person)
+        return await _guard(fs_ops.find_references(client, _norm(root), name))
 
     return router

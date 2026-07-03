@@ -49,11 +49,28 @@ an unknown project `404`, no identity `401`, an out-of-bounds path `400`.
 | POST | `/{mount}/extract-text` | `{path, max_chars, preview_chars, ocr, refresh}` | extract to a `.md` companion; returns `{md_path, preview, cached}` |
 | POST | `/{mount}/write-docx` | `{path, markdown, title, overwrite}` | render Markdown to a `.docx` |
 | GET | `/{mount}/audit-log` | `?since=&limit=` | recent session mutations |
+| GET | `/{mount}/read-lines` | `?path=&start_line=&end_line=` | inclusive line range |
+| GET | `/{mount}/read-section` | `?path=&anchor_line=&max_lines=` | indentation block around a line |
+| GET | `/{mount}/head` / `/{mount}/tail` | `?path=&lines=` | first / last N lines |
+| POST | `/{mount}/read-many` | `{paths, per_file_cap_lines}` | batch read, per-file error isolation |
+| GET | `/{mount}/tree` | `?path=&max_depth=&exclude_patterns=&with_sizes=` | recursive JSON tree |
+| POST | `/{mount}/write` | `{path, content, overwrite, create_parents}` | create/overwrite a text file |
+| POST | `/{mount}/append` | `{path, content, create}` | append to a file |
+| POST | `/{mount}/create-empty` | `{path, exist_ok}` | touch an empty file |
+| POST | `/{mount}/edit` | `{path, old_string, new_string, replace_all, dry_run}` | replace a unique string |
+| POST | `/{mount}/multi-edit` | `{path, edits[], dry_run}` | several edits atomically |
+| POST | `/{mount}/search-replace` | `{path, search_block, replace_block, fuzzy}` | replace a multi-line block |
+| POST | `/{mount}/insert-at-line` | `{path, line, content}` | insert before a 1-based line |
+| POST | `/{mount}/apply-patch` | `{patch_text}` | apply a multi-file V4A patch |
+| GET | `/{mount}/find-definition` | `?name=&root=&kind=` | tree-sitter symbol definition |
+| GET | `/{mount}/find-references` | `?name=&root=` | tree-sitter identifier references |
 
-The rows below the zip line mirror the MCP `fs.*` tools: both planes are thin
-adapters over the same `fs_ops` module and the same `VolumeClient`, so what you
-can do over the API and over the agent tools is iso (minus tree-sitter and the
-`admin.*` project/member operations, which stay on their own surfaces).
+Everything below the zip line mirrors the MCP `fs.*` tools: both planes are thin
+adapters over the same `fs_ops` module and the same `VolumeClient`, so the API
+and the agent tools are **iso** across all 33 `fs.*` operations. Only the
+`admin.*` project/member operations stay off the data plane (they have their own
+surface and auth). A downstream tool (e.g. a docx generator) can therefore do
+everything over the API: read variants, write/edit/patch, extract, render.
 
 ## UI
 

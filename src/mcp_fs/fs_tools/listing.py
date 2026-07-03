@@ -6,15 +6,14 @@ from typing import TYPE_CHECKING, Any
 
 from mcp.types import ToolAnnotations
 
+from mcp_fs import fs_ops
+
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
 
     from mcp_fs.context import ToolContext
-    from mcp_fs.volume import VolumeClient
 
 _READ_ONLY = ToolAnnotations(readOnlyHint=True, idempotentHint=True, destructiveHint=False)
-_DEFAULT_EXCLUDES = (".git", "node_modules", "target", "dist", ".build", "coverage")
-_TREE_CAP = 2000
 
 
 def register(mcp: FastMCP, ctx: ToolContext) -> None:
@@ -50,11 +49,13 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         with_sizes: bool = False,
     ) -> dict[str, Any]:
         _, client = await ctx.client(mount_id)
-        norm = ctx.norm(path)
-        excludes = set(_DEFAULT_EXCLUDES) | set(exclude_patterns or ())
-        counter = [0]
-        tree = await _build_tree(client, norm, max_depth, excludes, with_sizes, counter)
-        return {"path": norm, "tree": tree, "truncated": counter[0] >= _TREE_CAP}
+        return await fs_ops.tree(
+            client,
+            ctx.norm(path),
+            max_depth=max_depth,
+            exclude_patterns=tuple(exclude_patterns or ()),
+            with_sizes=with_sizes,
+        )
 
 
 def _entry(name: str, kind: str, size: int, mtime: float, *, with_sizes: bool) -> dict[str, Any]:
@@ -63,31 +64,3 @@ def _entry(name: str, kind: str, size: int, mtime: float, *, with_sizes: bool) -
         entry["size"] = size
         entry["mtime"] = mtime
     return entry
-
-
-async def _build_tree(
-    client: VolumeClient,
-    path: str,
-    depth: int,
-    excludes: set[str],
-    with_sizes: bool,
-    counter: list[int],
-) -> list[dict[str, Any]]:
-    if depth < 0 or counter[0] >= _TREE_CAP:
-        return []
-    nodes: list[dict[str, Any]] = []
-    for name, kind, size, _mtime in await client.listdir(path):
-        if name in excludes:
-            continue
-        counter[0] += 1
-        if counter[0] >= _TREE_CAP:
-            break
-        node: dict[str, Any] = {"name": name, "kind": kind}
-        if with_sizes and kind == "file":
-            node["size"] = size
-        if kind == "dir" and depth > 0:
-            node["children"] = await _build_tree(
-                client, f"{path.rstrip('/')}/{name}", depth - 1, excludes, with_sizes, counter
-            )
-        nodes.append(node)
-    return nodes

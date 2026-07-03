@@ -1,13 +1,15 @@
-"""Write family: write (no-clobber + atomic), append, create_empty."""
+"""Write family: write (no-clobber + atomic), append, create_empty.
+
+Thin adapters over :mod:`mcp_fs.fs_ops` (shared with the /api/fs data plane).
+"""
 
 from __future__ import annotations
 
-import difflib
 from typing import TYPE_CHECKING, Any
 
 from mcp.types import ToolAnnotations
 
-from mcp_fs.models import ErrorCode, ToolError
+from mcp_fs import fs_ops
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -33,50 +35,25 @@ def register(mcp: FastMCP, ctx: ToolContext) -> None:
         create_parents: bool = True,
     ) -> dict[str, Any]:
         person, client = await ctx.client(mount_id)
-        norm = ctx.norm(path)
-        exists = await client.exists(norm)
-        if exists and not overwrite:
-            raise ToolError(ErrorCode.NO_CLOBBER, f"'{norm}' exists (pass overwrite=true)")
-        diff = ""
-        if exists:
-            ctx.safety.ensure_read_before_write(person, mount_id, norm)
-            old = await client.read_text(norm)
-            diff = "".join(
-                difflib.unified_diff(old.splitlines(keepends=True), content.splitlines(keepends=True), norm, norm)
-            )
-        if create_parents:
-            parent = norm.rsplit("/", 1)[0] or "/"
-            if parent != "/":
-                await client.makedirs(parent, exist_ok=True)
-        data = content.encode("utf-8")
-        ctx.safety.charge_write(person, mount_id, len(data))
-        await client.write_bytes_atomic(norm, data)
-        ctx.safety.record_read(person, mount_id, norm)
-        ctx.safety.record_audit(person, mount_id, "write", norm, f"{len(data)} bytes")
-        return {"path": norm, "bytes_written": len(data), "overwritten": exists, "diff": diff}
+        return await fs_ops.write_text(
+            client,
+            ctx.safety,
+            person,
+            mount_id,
+            ctx.norm(path),
+            content,
+            overwrite=overwrite,
+            create_parents=create_parents,
+        )
 
     @mcp.tool(
         name="fs.append", annotations=_DESTRUCTIVE, description="Append content to a file (optionally create it)."
     )
     async def fs_append(mount_id: str, path: str, content: str, create: bool = False) -> dict[str, Any]:
         person, client = await ctx.client(mount_id)
-        norm = ctx.norm(path)
-        if not await client.exists(norm) and not create:
-            raise ToolError(ErrorCode.NOT_FOUND, f"'{norm}' does not exist (pass create=true)")
-        data = content.encode("utf-8")
-        ctx.safety.charge_write(person, mount_id, len(data))
-        await client.append_bytes(norm, data)
-        ctx.safety.record_audit(person, mount_id, "append", norm, f"{len(data)} bytes")
-        return {"path": norm, "bytes_appended": len(data)}
+        return await fs_ops.append_text(client, ctx.safety, person, mount_id, ctx.norm(path), content, create=create)
 
     @mcp.tool(name="fs.create_empty", annotations=_DESTRUCTIVE, description="Create an empty file (touch).")
     async def fs_create_empty(mount_id: str, path: str, exist_ok: bool = False) -> dict[str, Any]:
         person, client = await ctx.client(mount_id)
-        norm = ctx.norm(path)
-        if await client.exists(norm):
-            if not exist_ok:
-                raise ToolError(ErrorCode.NO_CLOBBER, f"'{norm}' already exists")
-            return {"path": norm, "created": False}
-        await client.create_empty(norm)
-        ctx.safety.record_audit(person, mount_id, "create_empty", norm)
-        return {"path": norm, "created": True}
+        return await fs_ops.create_empty(client, ctx.safety, person, mount_id, ctx.norm(path), exist_ok=exist_ok)
