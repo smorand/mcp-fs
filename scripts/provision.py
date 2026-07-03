@@ -50,7 +50,11 @@ def main() -> None:
         if line.startswith("data: "):
             result = json.loads(line[len("data: ") :])["result"]
             if result.get("isError"):
-                print("error:", result["content"][0]["text"])
+                text = result["content"][0]["text"]
+                if "ERR_PROJECT_EXISTS" in text:  # idempotent: already provisioned is fine
+                    print(f"already exists: {mount_id}")
+                    return
+                print("error:", text)
                 sys.exit(1)
             print("provisioned:", result.get("structuredContent", result))
             return

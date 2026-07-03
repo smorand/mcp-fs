@@ -82,7 +82,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ARG", "PLR2004", "S101", "PLC0415", "SLF001", "TC001", "TC002", "TC003", "N801", "N802", "N803"]
 # Operational helper scripts: magic values (ports, status codes) are fine inline.
-"scripts/*" = ["PLR2004"]
+"scripts/*" = ["PLR2004", "PLR0915"]
 # Tool-registration modules define many nested tool closures in one function.
 "src/mcp_fs/fs_tools/*" = ["PLR0915"]
 "src/mcp_fs/admin_tools.py" = ["PLR0915"]
