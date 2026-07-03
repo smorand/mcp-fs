@@ -56,7 +56,9 @@ ktab web-a2a run-web-a2a.sh
 
 echo
 echo "Services launching in named kitty tabs."
-echo "When web-a2a is up, open http://localhost:5004"
+echo "mcp-fs web UI (file manager) + API: http://localhost:5002/  (login as ${ADMIN_EMAIL})"
+echo
+echo "For the agent chat, when web-a2a is up, open http://localhost:5004"
 echo "  login as ${ADMIN_EMAIL}"
 echo "  add a remote agent by URL: http://127.0.0.1:5003/agents/files  (auth: none)"
 echo "  then chat, for example: list my files"
