@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}mcp-fs files{% endblock %}
+{% block body %}
+<header class="topbar">
+  <div class="brand">mcp-fs</div>
+  <div class="spacer"></div>
+  <form class="inline" method="post" action="/preferences/theme">
+    <select class="field field-sm" name="theme" onchange="this.form.submit()" aria-label="Theme">
+      <option value="carbon" {% if theme == 'carbon' %}selected{% endif %}>Carbon</option>
+      <option value="ei" {% if theme == 'ei' %}selected{% endif %}>EI</option>
+    </select>
+  </form>
+  <form class="inline" method="post" action="/preferences/toggle-dark">
+    <button class="btn-icon" type="submit" title="Toggle dark mode">{{ '☀' if dark_mode else '☾' }}</button>
+  </form>
+  <span class="user">{{ email }}</span>
+  <form class="inline" method="post" action="/logout">
+    <button class="btn btn-ghost" type="submit">Sign out</button>
+  </form>
+</header>
+
+<main class="app">
+  {% if roots %}
+  <div class="controls">
+    <label class="control">Project
+      <select class="field" id="project" aria-label="Project">
+        {% for r in roots %}
+        <option value="{{ r.mount_id }}">{{ r.mount_id }}{% if r.is_owner %} (owner){% endif %}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-mkdir">New folder</button>
+    <button class="btn" id="btn-upload">Upload files</button>
+    <button class="btn" id="btn-upload-folder">Upload folder</button>
+    <button class="btn" id="btn-zip">Download zip</button>
+  </div>
+
+  <nav class="breadcrumb" id="breadcrumb" aria-label="Path"></nav>
+
+  <div class="dropzone" id="dropzone">
+    <table class="files">
+      <thead>
+        <tr><th class="col-name">Name</th><th class="col-size">Size</th><th class="col-actions"></th></tr>
+      </thead>
+      <tbody id="files"></tbody>
+    </table>
+    <div class="drop-hint">Drop files here to upload</div>
+  </div>
+  {% else %}
+  <div class="empty">
+    <p>You have no accessible projects yet.</p>
+    <p class="muted">Ask an admin to create a project owned by <strong>{{ email }}</strong> or add you as a member.</p>
+  </div>
+  {% endif %}
+</main>
+
+<input type="file" id="fileInput" multiple hidden>
+<input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+{% endblock %}
+{% block scripts %}<script src="/static/js/app.js?v={{ asset_version }}"></script>{% endblock %}

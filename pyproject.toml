@@ -25,6 +25,9 @@ dependencies = [
     "opentelemetry-api>=1.29.0",
     "opentelemetry-sdk>=1.29.0",
     "opentelemetry-instrumentation-fastapi>=0.50b0",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.32",
+    "itsdangerous>=2.2.0",
 ]
 
 [dependency-groups]
@@ -86,6 +89,8 @@ ignore = [
 # Tool-registration modules define many nested tool closures in one function.
 "src/mcp_fs/fs_tools/*" = ["PLR0915"]
 "src/mcp_fs/admin_tools.py" = ["PLR0915"]
+"src/mcp_fs/webui.py" = ["PLR0915"]
+"src/mcp_fs/dataplane.py" = ["PLR0915"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["mcp_fs"]

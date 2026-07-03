@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+{# Theme is set on <html> via data-carbon-theme (g10 light / g100 dark). The
+   theme stylesheet defines the color tokens; app.css consumes them. #}
+<html lang="en" data-carbon-theme="{{ 'g100' if dark_mode else 'g10' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}mcp-fs{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/themes/{{ theme|default('carbon') }}.css?v={{ asset_version }}">
+    <link rel="stylesheet" href="/static/css/app.css?v={{ asset_version }}">
+</head>
+<body>
+    {% block body %}{% endblock %}
+    <div class="toast-container" id="toasts" aria-live="polite" aria-atomic="true"></div>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

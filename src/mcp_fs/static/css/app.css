@@ -1,0 +1,124 @@
+/* mcp-fs web UI. Consumes the --cds-* tokens from the theme stylesheet
+   (carbon.css / ei.css), so switching theme or dark mode restyles everything. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--cds-background);
+  color: var(--cds-text-primary);
+  font-family: var(--cds-font-sans);
+  font-size: 14px;
+}
+
+/* -- top bar --------------------------------------------------------------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--cds-layer-01);
+  border-bottom: 1px solid var(--cds-border-subtle-01);
+}
+.brand { font-weight: 600; letter-spacing: 0.02em; }
+.spacer { flex: 1; }
+.user { color: var(--cds-text-secondary); font-size: 13px; }
+.inline { margin: 0; display: inline-flex; }
+
+/* -- buttons / fields ------------------------------------------------------ */
+.btn {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  padding: 7px 12px;
+  background: var(--cds-layer-02);
+  color: var(--cds-text-primary);
+  border-radius: 2px;
+}
+.btn:hover { background: var(--cds-layer-hover-02); }
+.btn-primary { background: var(--cds-button-primary); color: var(--cds-text-on-color); }
+.btn-primary:hover { background: var(--cds-button-primary-hover); }
+.btn-ghost { background: transparent; color: var(--cds-text-secondary); }
+.btn-ghost:hover { background: var(--cds-background-hover); }
+.btn-danger { background: transparent; color: var(--cds-text-error); }
+.btn-danger:hover { background: var(--cds-background-hover); }
+.btn-icon {
+  font: inherit; cursor: pointer; border: none; background: transparent;
+  color: var(--cds-icon-primary); padding: 6px 8px; border-radius: 2px;
+}
+.btn-icon:hover { background: var(--cds-background-hover); }
+
+.field {
+  font: inherit;
+  padding: 7px 10px;
+  background: var(--cds-field-01);
+  color: var(--cds-text-primary);
+  border: 1px solid var(--cds-border-strong-01);
+  border-radius: 2px;
+}
+.field:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+.field-sm { padding: 4px 8px; }
+
+/* -- login ----------------------------------------------------------------- */
+.login-wrap { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+.login-card {
+  width: 340px; padding: 28px;
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.login-title { margin: 0; font-size: 22px; }
+.login-sub { margin: 0 0 8px; color: var(--cds-text-secondary); }
+.field-label { font-size: 12px; color: var(--cds-text-helper); }
+.login-btn { margin-top: 8px; }
+.login-hint { margin: 6px 0 0; font-size: 12px; color: var(--cds-text-helper); }
+
+/* -- app layout ------------------------------------------------------------ */
+.app { padding: 16px; max-width: 1000px; margin: 0 auto; }
+.controls { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+.control { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--cds-text-helper); }
+
+.breadcrumb { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 8px 0; font-size: 13px; }
+.breadcrumb a { color: var(--cds-link-primary); cursor: pointer; text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb .sep { color: var(--cds-text-placeholder); }
+
+/* -- files table ----------------------------------------------------------- */
+.dropzone { position: relative; border: 1px dashed transparent; border-radius: 2px; }
+.dropzone.dragover { border-color: var(--cds-border-interactive); background: var(--cds-background-selected); }
+.dropzone.dragover .drop-hint { display: block; }
+.drop-hint {
+  display: none; position: absolute; inset: 0; place-items: center; display: none;
+  pointer-events: none; color: var(--cds-link-primary); font-weight: 600;
+}
+.dropzone.dragover .drop-hint { display: grid; }
+
+.files { width: 100%; border-collapse: collapse; }
+.files th, .files td {
+  text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--cds-border-subtle-00);
+}
+.files th { color: var(--cds-text-helper); font-weight: 500; font-size: 12px; }
+.files tr:hover td { background: var(--cds-layer-hover-01); }
+.col-size { width: 110px; color: var(--cds-text-secondary); }
+.col-actions { width: 220px; text-align: right; }
+.name-cell { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.name-cell .kind { color: var(--cds-icon-secondary); }
+.name-cell.dir .label { color: var(--cds-link-primary); }
+.row-actions { display: inline-flex; gap: 4px; }
+.row-actions .btn-icon { font-size: 13px; }
+
+.empty { padding: 40px 16px; text-align: center; }
+.muted { color: var(--cds-text-helper); }
+
+/* -- toasts ---------------------------------------------------------------- */
+.toast-container { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  padding: 10px 14px; border-radius: 2px; box-shadow: var(--cds-shadow);
+  background: var(--cds-layer-03); color: var(--cds-text-primary);
+  border-left: 3px solid var(--cds-support-info); max-width: 360px; font-size: 13px;
+}
+.toast.error { border-left-color: var(--cds-support-error); }
+.toast.success { border-left-color: var(--cds-support-success); }

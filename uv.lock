@@ -1122,6 +1122,8 @@ source = { editable = "." }
 dependencies = [
     { name = "aioboto3" },
     { name = "fastapi" },
+    { name = "itsdangerous" },
+    { name = "jinja2" },
     { name = "mcp" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-instrumentation-fastapi" },
@@ -1129,6 +1131,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt", extra = ["crypto"] },
+    { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "rich" },
     { name = "tree-sitter" },
@@ -1154,6 +1157,8 @@ dev = [
 requires-dist = [
     { name = "aioboto3", specifier = ">=13.2.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "itsdangerous", specifier = ">=2.2.0" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mcp", specifier = ">=1.2.0" },
     { name = "opentelemetry-api", specifier = ">=1.29.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.50b0" },
@@ -1161,6 +1166,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.0" },
+    { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "rich", specifier = ">=13.9.0" },
     { name = "tree-sitter", specifier = ">=0.23.0" },

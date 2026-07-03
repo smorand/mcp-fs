@@ -1,0 +1,102 @@
+/* ============================================================
+   EI / Crédit Mutuel-inspired theme: token definitions only.
+   Steel-blue chrome, white panels, orange active accent,
+   Tahoma typography. Single light palette; the [g100] dark
+   selector falls back to the same tokens so the dark/light
+   toggle does not break the UI when this theme is active.
+   ============================================================ */
+
+:root {
+  --cds-font-sans: Tahoma, Verdana, Geneva, "Segoe UI", sans-serif;
+  --cds-font-mono: Consolas, "Lucida Console", "SF Mono", Menlo, monospace;
+}
+
+[data-carbon-theme="g10"],
+[data-carbon-theme="g100"] {
+  /* Backgrounds */
+  --cds-background: #dde6ef;
+  --cds-background-hover: rgba(58, 110, 165, 0.08);
+  --cds-background-active: rgba(58, 110, 165, 0.18);
+  --cds-background-selected: #fff5da;
+  --cds-background-selected-hover: #fef3d0;
+  --cds-background-inverse: #2a4d72;
+
+  /* Layers */
+  --cds-layer-01: #ffffff;
+  --cds-layer-02: #e9eff6;
+  --cds-layer-03: #f5f8fb;
+  --cds-layer-hover-01: #f5f5f5;
+  --cds-layer-hover-02: #e1ecf7;
+  --cds-layer-selected-01: #fff5da;
+  --cds-layer-accent-01: #e9eff6;
+
+  /* Fields */
+  --cds-field-01: #ffffff;
+  --cds-field-02: #f5f8fb;
+  --cds-field-hover-01: #fef9c3;
+
+  /* Borders */
+  --cds-border-subtle-00: #c9d3df;
+  --cds-border-subtle-01: #c9d3df;
+  --cds-border-subtle-02: #8aa3c2;
+  --cds-border-strong-01: #1f4063;
+  --cds-border-interactive: #f4a200;
+
+  /* Text */
+  --cds-text-primary: #1f2937;
+  --cds-text-secondary: #5a6b80;
+  --cds-text-placeholder: #8aa3c2;
+  --cds-text-helper: #5a6b80;
+  --cds-text-on-color: #ffffff;
+  --cds-text-disabled: #8aa3c2;
+  --cds-text-error: #c8261a;
+  --cds-text-inverse: #ffffff;
+
+  /* Icons */
+  --cds-icon-primary: #1f2937;
+  --cds-icon-secondary: #5a6b80;
+  --cds-icon-on-color: #ffffff;
+  --cds-icon-disabled: #8aa3c2;
+  --cds-icon-inverse: #ffffff;
+
+  /* Links */
+  --cds-link-primary: #1d4f8a;
+  --cds-link-primary-hover: #143b6b;
+
+  /* Buttons */
+  --cds-button-primary: #3568a0;
+  --cds-button-primary-hover: #2f5a87;
+  --cds-button-primary-active: #1f4978;
+  --cds-button-secondary: #5a8bc0;
+  --cds-button-secondary-hover: #4a7ab0;
+  --cds-button-tertiary: #1d4f8a;
+  --cds-button-danger: #c8261a;
+
+  /* Support / status */
+  --cds-support-success: #1e7e34;
+  --cds-support-warning: #f4a200;
+  --cds-support-error: #c8261a;
+  --cds-support-info: #3568a0;
+  --cds-support-caution-major: #c87b00;
+  --cds-toggle-off: #8aa3c2;
+
+  /* Focus / surface */
+  --cds-focus: #f4a200;
+  --cds-focus-inset: #ffffff;
+  --cds-shadow: 0 2px 6px rgba(20, 35, 60, 0.12);
+  --cds-overlay: rgba(20, 35, 60, 0.45);
+
+  /* Tags */
+  --cds-tag-blue-bg: #d0e2ff;
+  --cds-tag-blue-text: #1f4063;
+  --cds-tag-purple-bg: #e8daff;
+  --cds-tag-purple-text: #491d8b;
+  --cds-tag-teal-bg: #c9eff0;
+  --cds-tag-teal-text: #004144;
+  --cds-tag-magenta-bg: #ffd6e8;
+  --cds-tag-magenta-text: #740937;
+  --cds-tag-cyan-bg: #bae6ff;
+  --cds-tag-cyan-text: #003a6d;
+  --cds-tag-gray-bg: #e9eff6;
+  --cds-tag-gray-text: #1f2937;
+}

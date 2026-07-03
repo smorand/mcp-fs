@@ -45,3 +45,9 @@ safety:
   read_guard: true
   allow_hard_delete: false
   max_read_lines: 2000
+
+webui:
+  enabled: true
+  secret_key: "dev-webui-secret-change-me"
+  theme: "carbon"
+  dark_mode: true
