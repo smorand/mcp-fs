@@ -27,7 +27,7 @@ async def _wire() -> tuple[FastMCP, FakeVolume]:
 
 
 @pytest.mark.asyncio
-async def test_write_docx_then_extract_it_back() -> None:
+async def test_write_docx_then_extract_creates_md_companion() -> None:
     mcp, volume = await _wire()
     token = identity._current_identity.set("alice")
     try:
@@ -39,9 +39,30 @@ async def test_write_docx_then_extract_it_back() -> None:
         data = await volume.read_bytes("/synthese.docx")
         result = extract(data, "/synthese.docx")
         assert result.fmt == "docx" and "Titre" in result.text and "point" in result.text
-        # And the extract_text tool returns structured text over the same file.
+        # extract_text materializes a .md companion next to the source and returns a preview.
         out = await mcp.call_tool("fs.extract_text", {"mount_id": "proj-a", "path": "/synthese.docx"})
-        assert "Titre" in str(out)
+        structured = out[1] if isinstance(out, tuple) else out
+        assert structured["md_path"] == "/synthese.md"
+        assert structured["cached"] is False and "Titre" in structured["preview"]
+        companion = (await volume.read_bytes("/synthese.md")).decode("utf-8")
+        assert "Titre" in companion and "point" in companion
+        # A second call reuses the up-to-date companion.
+        again = await mcp.call_tool("fs.extract_text", {"mount_id": "proj-a", "path": "/synthese.docx"})
+        again_structured = again[1] if isinstance(again, tuple) else again
+        assert again_structured["cached"] is True
+    finally:
+        identity._current_identity.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_extract_text_of_plain_text_has_no_companion() -> None:
+    mcp, volume = await _wire()
+    await volume.write_bytes_atomic("/notes.md", b"# just markdown")
+    token = identity._current_identity.set("alice")
+    try:
+        out = await mcp.call_tool("fs.extract_text", {"mount_id": "proj-a", "path": "/notes.md"})
+        structured = out[1] if isinstance(out, tuple) else out
+        assert structured["md_path"] is None and "just markdown" in structured["preview"]
     finally:
         identity._current_identity.reset(token)
 

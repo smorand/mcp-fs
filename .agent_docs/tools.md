@@ -91,7 +91,7 @@ Authority: **platform admin** (`auth.admins` in config) > **owner** > **member**
 
 | Tool | Args | Notes |
 |------|------|-------|
-| `fs.extract_text` | `path, max_chars=200000, ocr=true` | extract Markdown/text from PDF, DOCX, PPTX, XLSX, HTML, CSV, images (CPU OCR if Tesseract present), text; audio/video rejected |
+| `fs.extract_text` | `path, max_chars=200000, preview_chars=4000, ocr=true, refresh=false` | extract PDF/DOCX/PPTX/XLSX/HTML/CSV/image (CPU OCR)/text to Markdown; stores a companion `.md` next to the source (`report.pdf`->`report.md`), reused if up to date; returns `{md_path, preview, chars, cached}` (read the `.md` for full content) |
 | `fs.write_docx` | `path, markdown, title?, overwrite=false` | render a Markdown subset (headings, lists, pipe tables, bold/italic) to a `.docx` |
 
 ## Error codes (`ErrorCode`)
