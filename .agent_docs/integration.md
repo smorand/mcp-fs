@@ -37,12 +37,12 @@ example lives in `config-examples/mcp-fs/`:
 
 ```bash
 # 1. start mcp-fs (this repo)
-make serve                                # serves /mcp on :8080
+make serve                                # serves /mcp on :5002
 
 # 2. point config-a2a at it and validate the wiring (config-a2a verifies the
 #    bearer and re-forwards it; a service token covers tool discovery)
 cd ../config-a2a
-MCP_FS_URL=http://localhost:8080/mcp \
+MCP_FS_URL=http://localhost:5002/mcp \
 MCP_FS_DEFAULT_MOUNT_ID=demo-ei \
   uv run agent --config config_examples/09-juicefs/agents-jwt.yaml --check
 ```

@@ -2,6 +2,8 @@
 setlocal
 
 REM Full local stack launcher (Windows): moto, mcp-fs, config-a2a, web-a2a.
+REM Ports are sequential to avoid collisions: moto S3 5001, mcp-fs 5002,
+REM config-a2a 5003, web-a2a 5004 (5000 is left to macOS AirPlay).
 REM Usage:  test-local.bat [test_config.yaml]      (run from the mcp-fs repo root)
 REM Reads the test config, prepares keys / config / launch scripts, then starts
 REM each service in its own window in the right order. Close the windows to stop.
@@ -47,9 +49,9 @@ start "web-a2a" cmd /k call state\run-web-a2a.bat
 
 echo.
 echo Services launching in separate windows.
-echo When web-a2a is up, open http://localhost:8000
+echo When web-a2a is up, open http://localhost:5004
 echo   login as %ADMIN_EMAIL%
-echo   add a remote agent by URL: http://127.0.0.1:9100/agents/files  (auth: none)
+echo   add a remote agent by URL: http://127.0.0.1:5003/agents/files  (auth: none)
 echo   then chat, for example: list my files
 echo.
 echo Close the four windows to stop the services.

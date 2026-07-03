@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from mcp_fs.models import ServerConfig
 
 # The transport security guard accepts hosts shaped like ``localhost:<port>``.
-_BASE_URL = "http://localhost:8080"
+_BASE_URL = "http://localhost:5002"
 _MCP_HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
 
 

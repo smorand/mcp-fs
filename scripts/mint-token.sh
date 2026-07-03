@@ -7,7 +7,7 @@
 #   scripts/mint-token.sh <email> [ttl_seconds]
 # Example (curl):
 #   TOK=$(scripts/mint-token.sh seb.morand@gmail.com)
-#   curl -s localhost:8080/mcp -H "X-Forwarded-Authorization: Bearer $TOK" ...
+#   curl -s localhost:5002/mcp -H "X-Forwarded-Authorization: Bearer $TOK" ...
 set -euo pipefail
 
 EMAIL="${1:?usage: mint-token.sh <email> [ttl_seconds]}"

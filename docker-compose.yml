@@ -7,7 +7,7 @@ services:
   app:
     image: ${DOCKER_PREFIX:-}${PROJECT_NAME:-mcp-fs}:${DOCKER_TAG:-latest}
     ports:
-      - "8080:8080"
+      - "5002:5002"
     restart: unless-stopped
     # environment:
     #   - MCP_FS_CONFIG_NAME=local

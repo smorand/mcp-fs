@@ -4,7 +4,7 @@
 # so config-a2a's native `juicefs:` block is a drop in: point its url at mcp-fs.
 #
 # Run mcp-fs first (cd ../mcp-fs && make run), then from the config-a2a repo:
-#   MCP_FS_URL=http://localhost:8080/mcp \
+#   MCP_FS_URL=http://localhost:5002/mcp \
 #   MCP_FS_SERVICE_IDENTITY=sebastien \
 #   MCP_FS_DEFAULT_MOUNT_ID=demo-ei \
 #     uv run agent --config ../mcp-fs/config-examples/mcp-fs/agents.yaml --check
@@ -66,7 +66,7 @@ agents:
     # Pointed at mcp-fs, it gives the agent the fs.* tools, surfaced as
     # `fs.fs.read`, `fs.admin.create_project`, ...
     juicefs:
-      url: ${MCP_FS_URL}                  # e.g. http://localhost:8080/mcp
+      url: ${MCP_FS_URL}                  # e.g. http://localhost:5002/mcp
       name: fs
       default_mount_id: ${MCP_FS_DEFAULT_MOUNT_ID}   # optional "current project"
     confirmations:

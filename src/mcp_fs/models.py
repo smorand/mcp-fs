@@ -138,7 +138,7 @@ class HttpConfig(BaseModel):
     """HTTP transport binding."""
 
     host: str = "0.0.0.0"  # nosec B104 - container binds all interfaces by design
-    port: int = 8080
+    port: int = 5002
     mcp_path: str = "/mcp"
 
 

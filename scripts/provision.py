@@ -7,7 +7,7 @@ server config's auth.admins.
 Usage:
   uv run python scripts/provision.py <mount_id> [owner_email]
 Environment:
-  MCP_FS_URL    base URL of the server (default http://127.0.0.1:8080/mcp)
+  MCP_FS_URL    base URL of the server (default http://127.0.0.1:5002/mcp)
   MCP_FS_ADMIN  admin identity used as the caller (default seb.morand@gmail.com)
 """
 
@@ -23,7 +23,7 @@ import httpx
 import jwt
 
 FS_ROOT = Path(__file__).resolve().parent.parent
-URL = os.environ.get("MCP_FS_URL", "http://127.0.0.1:8080/mcp")
+URL = os.environ.get("MCP_FS_URL", "http://127.0.0.1:5002/mcp")
 ADMIN = os.environ.get("MCP_FS_ADMIN", "seb.morand@gmail.com")
 _HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
 

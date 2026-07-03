@@ -2,13 +2,13 @@
 # Selected via MCP_FS_CONFIG_NAME=moto, or passed with --config config/moto.yaml.
 #
 # Identical to config/local.yaml except the blob endpoint points at a moto server
-# (a pure-Python S3 emulator). Start it with:  uv run moto_server -p 5000
+# (a pure-Python S3 emulator). Start it with:  uv run moto_server -p 5001
 # moto accepts any credentials and stores objects in memory (lost on restart).
 # Use the IP 127.0.0.1 (not "localhost") so boto3 selects path-style addressing.
 
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 5002
   mcp_path: "/mcp"
 
 auth:
@@ -27,7 +27,7 @@ infra:
     dir: "state/volumes"
   blob:
     backend: "s3"
-    endpoint: "http://127.0.0.1:5000"
+    endpoint: "http://127.0.0.1:5001"
     access_key: "testing"
     secret_key: "testing"
     bucket_prefix: "mcpfs-"

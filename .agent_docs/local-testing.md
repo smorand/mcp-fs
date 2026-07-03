@@ -29,13 +29,13 @@ selects path-style addressing, which moto expects. moto keeps objects in memory
 
 ```bash
 # 1) S3 emulator
-uv run moto_server -p 5000
+uv run moto_server -p 5001
 
 # 2) mcp-fs on the moto profile
-uv run mcp-fs serve --config config/moto.yaml            # /mcp and /health on :8080
+uv run mcp-fs serve --config config/moto.yaml            # /mcp and /health on :5002
 
 # 3) end-to-end smoke test (mints tokens locally, drives real HTTP)
-uv run python scripts/smoke.py http://127.0.0.1:8080 seb.morand@gmail.com
+uv run python scripts/smoke.py http://127.0.0.1:5002 seb.morand@gmail.com
 ```
 
 Expected: every line `PASS`, then `ALL OK`. The smoke test covers `/health`,
@@ -61,14 +61,24 @@ Docker. Assumed layout: the three repos sit side by side (`../config-a2a`,
 uv run python scripts/gen_jwt_keys.py
 ```
 
+Ports are sequential so nothing collides with common local apps (5000 stays free
+for macOS AirPlay); `test-local.sh` / `test-local.bat` wire the same numbers:
+
+| Service | Port | URL |
+|---------|------|-----|
+| moto (S3 emulator) | 5001 | `http://127.0.0.1:5001` |
+| mcp-fs (`/mcp`, `/api/fs`, UI) | 5002 | `http://127.0.0.1:5002` |
+| config-a2a agent | 5003 | `http://127.0.0.1:5003/agents/files` |
+| web-a2a UI | 5004 | `http://localhost:5004` |
+
 **Terminal 1, moto (S3 emulator):**
 ```bash
-uv run moto_server -p 5000
+uv run moto_server -p 5001
 ```
 
 **Terminal 2, mcp-fs on moto, then provision a project for your login email:**
 ```bash
-uv run mcp-fs serve --config config/moto.yaml               # :8080
+uv run mcp-fs serve --config config/moto.yaml               # :5002
 # once, in another shell (from the mcp-fs repo):
 uv run python scripts/provision.py perso-seb seb.morand@gmail.com
 ```
@@ -77,14 +87,14 @@ uv run python scripts/provision.py perso-seb seb.morand@gmail.com
 ```bash
 cd ../config-a2a
 OPENROUTER_API_KEY=<your key> uv run agent --config config_examples/mcp-fs-moto/agents.yaml
-# serves the agent A2A endpoint at http://127.0.0.1:9100/agents/files
+# serves the agent A2A endpoint at http://127.0.0.1:5003/agents/files
 ```
 On another host (E-I) where the mcp-fs URL or the LLM endpoint/key differ, use
 `agents.template.yaml` instead: it has `${...}` placeholders for `MCP_FS_URL`,
 `MCP_FS_MOUNT`, `LLM_MODEL`, `LLM_BASE_URL` (plus the api-key env var), set them
 in the environment or edit them inline.
 ```bash
-MCP_FS_URL=http://<host>:8080/mcp MCP_FS_MOUNT=perso-seb \
+MCP_FS_URL=http://<host>:5002/mcp MCP_FS_MOUNT=perso-seb \
 LLM_MODEL=openrouter/auto LLM_BASE_URL=https://openrouter.ai/api/v1 OPENROUTER_API_KEY=<key> \
   uv run agent --config config_examples/mcp-fs-moto/agents.template.yaml
 ```
@@ -104,12 +114,12 @@ Then:
 cd ../web-a2a
 mkdir state                     # if missing (SQLite needs the directory)
 uv run alembic upgrade head     # SQLite schema
-uv run uvicorn agent_chat.app:app --host 0.0.0.0 --port 8000
+uv run uvicorn agent_chat.app:app --host 0.0.0.0 --port 5004
 ```
 
-**Browser (http://localhost:8000):**
+**Browser (http://localhost:5004):**
 1. Login with the email that owns the project (`seb.morand@gmail.com`).
-2. Agents, add a remote agent by URL: `http://127.0.0.1:9100/agents/files` (auth: none).
+2. Agents, add a remote agent by URL: `http://127.0.0.1:5003/agents/files` (auth: none).
    Use `127.0.0.1` (not the bind address `0.0.0.0`) and note the plural `/agents/`
    with an `s`. The agent card at that URL is public, so discovery needs no token.
 3. Open a conversation with it and ask, for example, "list my files" or "read /notes.md".

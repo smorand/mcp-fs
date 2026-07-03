@@ -2,7 +2,7 @@
 # Consumed by scripts/test_local_prepare.py (invoked by test-local.bat on Windows).
 
 s3:
-  endpoint: "http://127.0.0.1:5000"   # moto server URL (or a real S3 endpoint)
+  endpoint: "http://127.0.0.1:5001"   # moto server URL (or a real S3 endpoint)
   access_key: "testing"               # any value works with moto
   secret_key: "testing"               # any value works with moto
   start_moto: true                    # true: test-local.bat launches moto on the endpoint's port

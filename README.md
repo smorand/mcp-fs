@@ -56,9 +56,9 @@ selects the implementation.
 ```bash
 make sync                                   # install dependencies (uv)
 make test                                   # unit + functional tests (no live stack)
-make serve                                  # serve /mcp and /health on :8080
+make serve                                  # serve /mcp and /health on :5002
 
-curl localhost:8080/health                  # {"status":"ok","version":"..."}
+curl localhost:5002/health                  # {"status":"ok","version":"..."}
 ```
 
 The default `config/local.yaml` points blobs at the colima MinIO

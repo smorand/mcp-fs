@@ -56,7 +56,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Switch to non-root user
 USER appuser:appgroup
 
-EXPOSE 8080
+EXPOSE 5002
 
 # MCP streamable-HTTP server; override the config via CMD or a mounted file.
 ENTRYPOINT ["mcp-fs"]

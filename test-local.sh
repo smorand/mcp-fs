@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Full local stack launcher (macOS / Linux, kitty): moto, mcp-fs, config-a2a, web-a2a.
+# Ports are sequential to avoid collisions: moto S3 5001, mcp-fs 5002,
+# config-a2a 5003, web-a2a 5004 (5000 is left to macOS AirPlay).
 # Same as test-local.bat, except each service opens in its own named kitty tab.
 # Usage:  ./test-local.sh [test_config.yaml]   (run from the mcp-fs repo root, inside kitty)
 set -euo pipefail
@@ -54,9 +56,9 @@ ktab web-a2a run-web-a2a.sh
 
 echo
 echo "Services launching in named kitty tabs."
-echo "When web-a2a is up, open http://localhost:8000"
+echo "When web-a2a is up, open http://localhost:5004"
 echo "  login as ${ADMIN_EMAIL}"
-echo "  add a remote agent by URL: http://127.0.0.1:9100/agents/files  (auth: none)"
+echo "  add a remote agent by URL: http://127.0.0.1:5003/agents/files  (auth: none)"
 echo "  then chat, for example: list my files"
 echo
 echo "Close the tabs to stop the services."

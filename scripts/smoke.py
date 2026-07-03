@@ -7,7 +7,7 @@ per check. Exits non-zero on the first failure, so it is easy to run remotely an
 paste the output.
 
 Usage:
-  uv run python scripts/smoke.py            # defaults: http://127.0.0.1:8080, seb.morand@gmail.com
+  uv run python scripts/smoke.py            # defaults: http://127.0.0.1:5002, seb.morand@gmail.com
   uv run python scripts/smoke.py <base_url> <admin_email>
 """
 
@@ -22,7 +22,7 @@ import httpx
 import jwt
 
 FS_ROOT = Path(__file__).resolve().parent.parent
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8080"
+BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:5002"
 ADMIN = sys.argv[2] if len(sys.argv) > 2 else "seb.morand@gmail.com"
 MOUNT = "smoke-proj"
 OUTSIDER = "nobody@example.com"
