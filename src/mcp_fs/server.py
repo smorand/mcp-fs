@@ -12,7 +12,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp_fs import admin_tools
 from mcp_fs.backends import build_admin_store
 from mcp_fs.context import ToolContext
-from mcp_fs.fs_tools import edit, lifecycle, listing, metadata, read, search, write
+from mcp_fs.fs_tools import documents, edit, lifecycle, listing, metadata, read, search, write
 from mcp_fs.identity import IdentityMiddleware, IdentityResolver
 from mcp_fs.manager import StoreManager
 from mcp_fs.safety import SafetyManager
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_TOOL_MODULES = (read, write, edit, search, listing, metadata, lifecycle, admin_tools)
+_TOOL_MODULES = (read, write, edit, search, listing, metadata, lifecycle, documents, admin_tools)
 
 
 def register_all(mcp: FastMCP, ctx: ToolContext) -> None:

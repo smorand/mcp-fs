@@ -1,6 +1,6 @@
 # MCP tools reference
 
-39 tools: **31 `fs.*`** and **8 `admin.*`**. Every `fs.*` tool takes a required
+41 tools: **33 `fs.*`** and **8 `admin.*`**. Every `fs.*` tool takes a required
 `mount_id` (the target project). Tools return JSON dicts; errors carry a stable
 `ErrorCode` (`ERR_*`). This surface is identical to `mcp-juicefs`; only the
 storage backend differs.
@@ -86,6 +86,13 @@ Authority: **platform admin** (`auth.admins` in config) > **owner** > **member**
 | `fs.copy` | `source, destination, overwrite=false, recursive=false` | no clobber |
 | `fs.list_allowed_roots` | | volumes the caller can access |
 | `fs.audit_log` | `since?, limit=20` | session mutations |
+
+## fs.* Documents (2)
+
+| Tool | Args | Notes |
+|------|------|-------|
+| `fs.extract_text` | `path, max_chars=200000, ocr=true` | extract Markdown/text from PDF, DOCX, PPTX, XLSX, HTML, CSV, images (CPU OCR if Tesseract present), text; audio/video rejected |
+| `fs.write_docx` | `path, markdown, title?, overwrite=false` | render a Markdown subset (headings, lists, pipe tables, bold/italic) to a `.docx` |
 
 ## Error codes (`ErrorCode`)
 

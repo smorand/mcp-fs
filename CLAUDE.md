@@ -35,7 +35,8 @@ make docker-build      # build the Docker image
 - `safety.py` : path normalization, read before write, quota, audit, trash.
 - `identity.py` / `authz` (in sqlite_admin) : verified RS256 bearer (X-Forwarded-Authorization), owner/members.
 - `context.py` : `ToolContext` (services injected into each tool).
-- `fs_tools/` : read, write, edit (+ `patch_v4a`), search, listing, metadata, lifecycle.
+- `fs_tools/` : read, write, edit (+ `patch_v4a`), search, listing, metadata, lifecycle, documents.
+- `extract.py` / `docx_writer.py` : pure-Python doc text extraction (PDF/DOCX/PPTX/XLSX/HTML/CSV/img) and Markdown->docx.
 - `treesitter.py` : find_definition / find_references.
 - `admin_tools.py` : create/delete/list projects, add/remove/list members.
 - `server.py` : `build_app` (FastMCP `/mcp` + FastAPI `/health` + identity middleware + lifespan).
@@ -58,7 +59,7 @@ This project follows the `python` skill. Reload it for the full reference.
 - `.agent_docs/python.md` : Python coding standards (from the `python` skill).
 - `.agent_docs/makefile.md` : Makefile targets and developer interface.
 - `.agent_docs/architecture.md` : storage model, write/read/delete flow, the blocks question, safety.
-- `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
+- `.agent_docs/tools.md` : reference of the 41 MCP tools (33 `fs.*` + 8 `admin.*`).
 - `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
 - `.agent_docs/authorization.md` : how identity is received and verified, the ACL model (admin/owner/member), caseless email matching, managing authorization.
 - `.agent_docs/webui.md` : the optional web UI and the /api/fs data plane (upload/download/browse/zip), cookie or JWT auth.

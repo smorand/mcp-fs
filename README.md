@@ -17,7 +17,7 @@ metadata and ACL live in local SQLite files. No PostgreSQL, no native libraries.
 
 `mcp-juicefs` is mature but hard to deploy in some environments: it needs
 `libjfs.so` (Linux only), a Docker runtime, PostgreSQL and MinIO. `mcp-fs` keeps
-the **entire upper layer unchanged** (the 31 `fs.*` tools, the safety contract,
+the **entire upper layer unchanged** (the 33 `fs.*` tools, the safety contract,
 identity and authorization, tree sitter code search) and only swaps the storage
 seam underneath.
 
@@ -97,7 +97,7 @@ Google) via JWKS is tracked in `specs/BACKLOG.md`.
 
 ## Tools
 
-39 tools total: 31 `fs.*` (read, write, edit, search, list, metadata, lifecycle,
+41 tools total: 33 `fs.*` (read, write, edit, search, list, metadata, lifecycle, documents,
 plus tree sitter `find_definition` / `find_references`) and 8 `admin.*` (project
 and membership management). Every `fs.*` tool takes a `mount_id`. See
 `.agent_docs/tools.md` for the full reference.
@@ -129,7 +129,7 @@ make check        # lint + format + mypy strict + bandit + tests (coverage >= 80
 
 * `CLAUDE.md` : compact index for AI agents.
 * `.agent_docs/architecture.md` : storage model, write / read / delete flow, safety.
-* `.agent_docs/tools.md` : reference of the 39 MCP tools (31 `fs.*` + 8 `admin.*`).
+* `.agent_docs/tools.md` : reference of the 41 MCP tools (33 `fs.*` + 8 `admin.*`).
 * `.agent_docs/backends.md` : how to add a metadata, blob or ACL backend.
 * `.agent_docs/authorization.md` : identity verification, the ACL model, caseless matching, managing access.
 * `.agent_docs/webui.md` : the optional web UI and /api/fs data plane (upload/download/browse/zip).

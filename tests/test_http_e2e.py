@@ -162,17 +162,17 @@ def _rsa_keypair(tmp_path: Path) -> tuple[bytes, Path]:
 # Tool surface and round trips over HTTP (debug auth, in-memory fakes)
 # --------------------------------------------------------------------------- #
 def test_http_tools_list_exposes_full_surface(fake_http_client: TestClient) -> None:
-    """tools/list over HTTP returns the whole surface: 31 fs.* + 8 admin.* = 39."""
+    """tools/list over HTTP returns the whole surface: 33 fs.* + 8 admin.* = 41."""
     body = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
     response = fake_http_client.post("/mcp", headers={**_MCP_HEADERS, **bearer("alice")}, json=body)
     assert response.status_code == 200
     tools = _parse_mcp(response)["result"]["tools"]
     names = {tool["name"] for tool in tools}
-    assert len(names) == 39
-    assert sum(name.startswith("fs.") for name in names) == 31
+    assert len(names) == 41
+    assert sum(name.startswith("fs.") for name in names) == 33
     assert sum(name.startswith("admin.") for name in names) == 8
     # A couple of representative tools are present and reachable.
-    assert {"fs.read", "fs.write", "admin.create_project"} <= names
+    assert {"fs.read", "fs.write", "fs.extract_text", "fs.write_docx", "admin.create_project"} <= names
 
 
 def test_http_create_write_read_roundtrip(fake_http_client: TestClient) -> None:
