@@ -112,7 +112,7 @@ def main() -> None:
     if not web_a2a.is_dir():
         _die(f"paths.web_a2a not found: {web_a2a}")
 
-    admin = str(cfg.get("admin_email", "seb.morand@gmail.com"))
+    admin = str(cfg.get("admin_email", "sebastien.morand@externe.e-i.com"))
     mount = str(cfg.get("mount_id", "perso-seb"))
 
     # Shared RS256 keys plus a discovery service token, distributed to the three repos.

@@ -18,5 +18,5 @@ paths:
 
 # Optional (defaults shown): the platform admin + project owner (your web-a2a login),
 # and the default project the agent works on.
-admin_email: "seb.morand@gmail.com"
+admin_email: "sebastien.morand@externe.e-i.com"
 mount_id: "perso-seb"
